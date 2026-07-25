@@ -2,7 +2,7 @@
 # Install: pip install pre-commit && pre-commit install
 repos:
   - repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.9.0
+    rev: v0.11.0
     hooks:
       - id: shellcheck
         args: ["--severity=error"]
@@ -10,7 +10,7 @@ repos:
         exclude: ^tests/mocks/
 
   - repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.7.0-1
+    rev: v3.13.1-1
     hooks:
       - id: shfmt
         args: ["-i", "4", "-ci", "-bn"]
