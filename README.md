@@ -21,8 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/FloyyMP/reconftw/actions"><img src="https://img.shields.io/badge/github_actions-%232671E5.svg?style=for-the-badge&logo=githubactions&logoColor=white" alt="GitHub Actions"></a>
-  <a href="https://hub.docker.com/r/FloyyMP/reconftw"><img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"></a>
+  <a href="https://github.com/FloyyMP/reconftw"><img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"></a>
   <a href="https://github.com/FloyyMP/reconftw/tree/main/Terraform"><img src="https://img.shields.io/badge/terraform-%23844FBA.svg?style=for-the-badge&logo=terraform&logoColor=white" alt="Terraform"></a>
   <a href="https://github.com/FloyyMP/reconftw/tree/main/Terraform"><img src="https://img.shields.io/badge/ansible-%231A1918.svg?style=for-the-badge&logo=ansible&logoColor=white" alt="Ansible"></a>
   <a href="https://github.com/FloyyMP/reconftw"><img src="https://img.shields.io/badge/Go-00ADD8.svg?style=for-the-badge&logo=go&logoColor=white" alt="Go"></a>
@@ -80,7 +79,6 @@ reconFTW leverages a wide range of techniques, including passive and active subd
 - [🤝 How to Contribute](#-how-to-contribute)
 - [🔒 Security](#-security)
 - [❓ Need Help?](#-need-help)
-- [💖 Support This Project](#-support-this-project)
 - [🙏 Thanks](#-thanks)
 - [📝 Changelog](#-changelog)
 - [🛠️ Development](#️-development)
@@ -98,7 +96,7 @@ reconFTW is packed with features to make reconnaissance thorough and efficient. 
 - **Domain Information**: WHOIS lookup for domain registration details ([whois](https://github.com/rfc1036/whois)).
 - **Email and Password Leaks**: Searches for leaked emails and credentials ([emailfinder](https://github.com/Josue87/EmailFinder) and [LeakSearch](https://github.com/JoelGMSec/LeakSearch)).
 - **Microsoft 365/Azure Mapping**: Identifies Microsoft 365 and Azure tenants ([msftrecon](https://github.com/Arcanum-Sec/msftrecon)).
-- **Metadata Extraction**: Extracts metadata from indexed office documents ([metagoofil](https://github.com/opsdisk/metagoofil)).
+- **Metadata Extraction**: Extracts metadata from indexed office documents ([exifray](https://github.com/mmarting/exifray)).
 - **API Leaks**: Detects exposed APIs in public sources ([porch-pirate](https://github.com/MandConsultingGroup/porch-pirate), [SwaggerSpy](https://github.com/UndeadSec/SwaggerSpy) and [postleaksNg](https://github.com/six2dez/postleaksNG)).
 - **Google Dorking**: Automated Google dork queries for sensitive information ([dorks_hunter](https://github.com/six2dez/dorks_hunter) and [xnldorker](https://github.com/xnl-h4ck3r/xnldorker)).
 - **GitHub Analysis**: Scans GitHub organizations for repositories and secrets with selectable engines ([enumerepo](https://github.com/trickest/enumerepo), [trufflehog](https://github.com/trufflesecurity/trufflehog), [gitleaks](https://github.com/gitleaks/gitleaks), [titus](https://github.com/praetorian-inc/titus), [noseyparker](https://github.com/praetorian-inc/noseyparker)).
@@ -183,7 +181,7 @@ reconFTW is packed with features to make reconnaissance thorough and efficient. 
 
 - **Multithreading**: Optimizes performance ([Interlace](https://github.com/codingo/Interlace)).
 - **Custom Resolvers**: Generates DNS resolvers ([dnsvalidator](https://github.com/vortexau/dnsvalidator)).
-- **Docker Support**: Official Docker image on [DockerHub](https://hub.docker.com/r/FloyyMP/reconftw).
+- **Docker Support**: Build and run using the included `Docker/Dockerfile`.
 - **AWS Deployment**: Deploys via Terraform and Ansible.
 - **IP/CIDR Support**: Scans IP ranges and CIDR blocks.
 - **Scan Resumption**: Resumes scans from the last completed step.
@@ -193,7 +191,7 @@ reconFTW is packed with features to make reconnaissance thorough and efficient. 
 - **Notifications**: Sends alerts via Slack, Discord, or Telegram ([notify](https://github.com/projectdiscovery/notify)).
 - **Result Zipping**: Compresses and sends results.
 - **Faraday Integration**: Exports results to [Faraday](https://github.com/infobyte/faraday) for reporting .
-- **AI Report Generation**: Generates reports using local AI models ([reconftw_ai](https://github.com/FloyyMP/reconftw_ai)).
+- **AI Report Generation**: Generates reports using local AI models ([reconftw_ai](https://github.com/six2dez/reconftw_ai)).
 - **Quick Rescan Mode**: Skips heavy stages automatically when no new assets are discovered (`--quick-rescan` / `QUICK_RESCAN`).
 - **Hotlist Builder**: Scores and highlights the riskiest assets (`hotlist.txt`) based on new findings.
 - **Command Tracing**: Toggle `SHOW_COMMANDS` to log every executed command into target logs for debugging.
@@ -318,18 +316,20 @@ cd reconftw
 
 ### Docker
 
-1. **Pull the Image**:
+1. **Build the Image**:
 
    ```bash
-   docker pull FloyyMP/reconftw:main
+   docker build -f Docker/Dockerfile -t reconftw:latest .
    ```
+
+   To skip Axiom fleet tooling in the build, pass `--build-arg INSTALL_AXIOM=false`.
 
 2. **Run the Container**:
 
    ```bash
    docker run -it --rm \
      -v "${PWD}/OutputFolder/:/reconftw/Recon/" \
-     FloyyMP/reconftw:main -d example.com -r
+     reconftw:latest -d example.com -r
    ```
 
    For a list of targets, bind the list file into the container and reference the in-container path:
@@ -338,7 +338,7 @@ cd reconftw
    docker run -it --rm \
      -v "${PWD}/domains.txt:/reconftw/domains.txt:ro" \
      -v "${PWD}/OutputFolder/:/reconftw/Recon/" \
-     FloyyMP/reconftw:main -l /reconftw/domains.txt -r
+     reconftw:latest -l /reconftw/domains.txt -r
    ```
 
 3. **View Results**:
@@ -346,8 +346,6 @@ cd reconftw
    - Results are saved in the `OutputFolder` directory on the host (not inside the container).
 
 4. **Customization**:
-   - Modify the Docker image or build your own; see the [Docker Guide](https://github.com/FloyyMP/reconftw/wiki/4.-Docker).
-   - To skip Ax tooling in custom builds, pass `--build-arg INSTALL_AXIOM=false`.
    - Mount your notify config at `~/.config/notify/provider-config.yaml` inside the container if you use notifications.
 
 5. **Secrets at Runtime**:
@@ -361,7 +359,7 @@ cd reconftw
      -e COLLAB_SERVER="your-server" \
      -e XSS_SERVER="your-server" \
      -v "${PWD}/OutputFolder/:/reconftw/Recon/" \
-     FloyyMP/reconftw:main -d example.com -r
+     reconftw:latest -d example.com -r
    ```
 
    See [SECURITY.md](SECURITY.md) for full secrets management guidance.
@@ -1010,7 +1008,7 @@ reconFTW integrates with [Faraday](https://faradaysec.com/) for web-based report
 
 ## 🧠 AI Integration
 
-reconFTW uses AI to generate detailed reports from scan results with the tool [reconftw_ai](https://github.com/FloyyMP/reconftw_ai).
+reconFTW uses AI to generate detailed reports from scan results with the tool [reconftw_ai](https://github.com/six2dez/reconftw_ai).
 
 - **Model**: Configurable AI model (e.g., `llama3:8b` via `AI_MODEL`).
 - **Report Types**: Markdown or plain text (`AI_REPORT_TYPE`).
@@ -1185,11 +1183,12 @@ setup() {
 
 ### CI Pipeline
 
-The GitHub Actions workflow (`.github/workflows/tests.yml`) runs on every push and pull request:
+No automated CI workflows are configured. Run tests locally:
 
-1. **ShellCheck** — lints `reconftw.sh`, `modules/*.sh`, and `install.sh`
-2. **Unit Tests** — runs all `tests/unit/*.bats` files
-3. **Integration Tests** — installs reconFTW and validates tool availability
+```bash
+make lint    # shellcheck all .sh files
+make test    # bats unit tests
+```
 
 ---
 
@@ -1227,6 +1226,7 @@ For security policy, secrets management, and vulnerability reporting, see [SECUR
 
 - **Wiki**: Explore the [reconFTW Wiki](https://github.com/FloyyMP/reconftw/wiki).
 - **FAQ**: Check the [FAQ](https://github.com/FloyyMP/reconftw/wiki/7.-FAQs).
+
 ---
 
 ## 🙏 Thanks
