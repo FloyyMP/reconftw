@@ -26,6 +26,8 @@ teardown() {
 source_reconftw() {
     # shellcheck source=/dev/null
     source "$SCRIPTPATH/reconftw.sh" --source-only 2>/dev/null || true
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
 }
 
 @test "full flow: directory structure is created correctly" {

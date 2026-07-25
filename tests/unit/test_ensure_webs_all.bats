@@ -12,6 +12,8 @@ setup() {
   cd "$TEST_DIR"
 
   source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
 }
 
 teardown() {

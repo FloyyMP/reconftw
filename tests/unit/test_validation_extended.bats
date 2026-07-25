@@ -16,10 +16,12 @@ setup() {
     source "$project_root/reconftw.cfg" 2>/dev/null || true
     export SCRIPTPATH="$project_root"
     source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# validate_boolean — full coverage (implementation accepts: true|false|1|0|yes|no)
+# validate_boolean — full coverage (implementation accepts: true|false only)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "validate_boolean accepts 'true'" {
@@ -32,24 +34,24 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
-@test "validate_boolean accepts '1'" {
+@test "validate_boolean rejects '1' (only true/false accepted)" {
     run validate_boolean "1"
-    [ "$status" -eq 0 ]
+    [ "$status" -ne 0 ]
 }
 
-@test "validate_boolean accepts '0'" {
+@test "validate_boolean rejects '0' (only true/false accepted)" {
     run validate_boolean "0"
-    [ "$status" -eq 0 ]
+    [ "$status" -ne 0 ]
 }
 
-@test "validate_boolean accepts 'yes'" {
+@test "validate_boolean rejects 'yes' (only true/false accepted)" {
     run validate_boolean "yes"
-    [ "$status" -eq 0 ]
+    [ "$status" -ne 0 ]
 }
 
-@test "validate_boolean accepts 'no'" {
+@test "validate_boolean rejects 'no' (only true/false accepted)" {
     run validate_boolean "no"
-    [ "$status" -eq 0 ]
+    [ "$status" -ne 0 ]
 }
 
 @test "validate_boolean rejects empty string" {

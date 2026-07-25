@@ -616,12 +616,16 @@ mark_missing_tools_warn_once() {
     [[ ${#missing[@]} -eq 0 ]] && return 0
 
     # dnstake is reported in preflight as "Pending tool", so suppress duplicate subtakeover warning.
-    if [[ " ${missing[*]} " == *" dnstake "* ]]; then
-        if ! declare -p WARN_ONCE_KEYS >/dev/null 2>&1; then
-            declare -gA WARN_ONCE_KEYS=()
+    local m
+    for m in "${missing[@]}"; do
+        if [[ "$m" == "dnstake" ]]; then
+            if ! declare -p WARN_ONCE_KEYS >/dev/null 2>&1; then
+                declare -gA WARN_ONCE_KEYS=()
+            fi
+            WARN_ONCE_KEYS["missing-tool-dnstake"]=1
+            break
         fi
-        WARN_ONCE_KEYS["missing-tool-dnstake"]=1
-    fi
+    done
 }
 
 ###############################################################################################################
@@ -1079,7 +1083,7 @@ function monitor_snapshot() {
 
     ensure_dirs .incremental/history || return 1
     local ts snap prev_link prev_dir
-    ts=$(date +%Y%m%d_%H%M%S)
+    ts=$(date +%Y%m%d_%H%M%S)_${BASHPID}
     snap=".incremental/history/${ts}"
     mkdir -p "$snap"
 
@@ -1197,7 +1201,7 @@ function monitor_snapshot() {
     elif [[ "$delta_total" -gt 0 ]]; then
         local alert_stats nuclei_u subs_u webs_u nuclei_s subs_s webs_s critical_u high_u
         alert_stats=$(_monitor_alert_summary "$snap")
-        read -r nuclei_u subs_u webs_u nuclei_s subs_s webs_s critical_u high_u <<<"$alert_stats"
+        IFS=' ' read -r nuclei_u subs_u webs_u nuclei_s subs_s webs_s critical_u high_u <<<"$alert_stats"
 
         if [[ "${nuclei_u:-0}" -gt 0 ]]; then
             notification "[ALERT] New nuclei findings (>=${MONITOR_MIN_SEVERITY:-high}): ${nuclei_u:-0}" warn
@@ -1708,7 +1712,7 @@ function process_in_chunks() {
 ###############################################################################################################
 
 # Performance timing storage
-declare -A FUNC_TIMINGS 2>/dev/null || true
+declare -gA FUNC_TIMINGS 2>/dev/null || true
 
 function record_func_timing() {
     # Usage: record_func_timing function_name duration_seconds

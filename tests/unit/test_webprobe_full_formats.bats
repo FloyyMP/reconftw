@@ -19,6 +19,8 @@ setup() {
   export PATH="$MOCK_BIN:$PATH"
 
   source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
   export domain="example.com"
   export DIFF=false
   export AXIOM=false

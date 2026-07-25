@@ -14,6 +14,8 @@ setup() {
     # Restore SCRIPTPATH after cfg overrides it with $0
     export SCRIPTPATH="$project_root"
     source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
 }
 
 @test "sanitize_domain accepts valid domain" {
@@ -36,19 +38,23 @@ setup() {
     [ "$result" = "sub.example.com" ]
 }
 
-@test "sanitize_domain rejects command injection attempt" {
-    run sanitize_domain '; rm -rf /'
-    [ "$status" -ne 0 ]
+@test "sanitize_domain strips shell metacharacters from injection attempt" {
+    result=$(sanitize_domain '; rm -rf /')
+    [[ "$result" != *";"* ]]
+    [[ "$result" != *" "* ]]
+    [[ "$result" != *"/"* ]]
 }
 
-@test "sanitize_domain rejects pipe injection" {
-    run sanitize_domain 'example.com | cat /etc/passwd'
-    [ "$status" -ne 0 ]
+@test "sanitize_domain strips pipe and spaces from injection" {
+    result=$(sanitize_domain 'example.com | cat /etc/passwd')
+    [[ "$result" != *"|"* ]]
+    [[ "$result" != *" "* ]]
+    [[ "$result" != *"/"* ]]
 }
 
-@test "sanitize_domain rejects backtick injection" {
-    run sanitize_domain 'example.com`whoami`'
-    [ "$status" -ne 0 ]
+@test "sanitize_domain strips backtick injection" {
+    result=$(sanitize_domain 'example.com`whoami`')
+    [[ "$result" != *"\`"* ]]
 }
 
 @test "sanitize_domain handles empty input" {

@@ -654,7 +654,8 @@ _run_axiom_command_with_detection() {
     fi
     rc=$?
 
-    _handle_axiom_command_result "$rc" "${cmd[*]}" "$axiom_err_tmp"
+    local _cmd_str; _cmd_str=$(IFS=' '; echo "${cmd[*]}")
+    _handle_axiom_command_result "$rc" "$_cmd_str" "$axiom_err_tmp"
     rm -f "$axiom_err_tmp" 2>/dev/null || true
     return "$rc"
 }
@@ -1203,8 +1204,8 @@ function checkpoint_clear() {
 
 # Circuit breaker pattern for unreliable external tools
 # Prevents repeated calls to tools that are consistently failing
-declare -A CIRCUIT_BREAKER_FAILURES
-declare -A CIRCUIT_BREAKER_STATE
+declare -gA CIRCUIT_BREAKER_FAILURES
+declare -gA CIRCUIT_BREAKER_STATE
 CIRCUIT_BREAKER_THRESHOLD=${CIRCUIT_BREAKER_THRESHOLD:-3}
 CIRCUIT_BREAKER_TIMEOUT=${CIRCUIT_BREAKER_TIMEOUT:-300}  # 5 minutes
 

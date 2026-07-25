@@ -12,6 +12,8 @@ setup() {
 
   # shellcheck source=/dev/null
   source "$SCRIPTPATH/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
   export MONITOR_MODE=true
   export ALERT_SUPPRESSION=true
 }

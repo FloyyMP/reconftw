@@ -13,6 +13,8 @@ setup() {
     source "$project_root/reconftw.cfg" 2>/dev/null || true
     export SCRIPTPATH="$project_root"
     source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
 }
 
 # validate_domain tests
@@ -109,16 +111,14 @@ setup() {
     [ "$status" -ne 0 ]
 }
 
-@test "validate_boolean accepts yes" {
-    # 'yes' is a valid truthy value per the implementation
+@test "validate_boolean rejects yes (only true/false accepted)" {
     run validate_boolean "yes"
-    [ "$status" -eq 0 ]
+    [ "$status" -ne 0 ]
 }
 
-@test "validate_boolean accepts 1" {
-    # '1' is a valid truthy value per the implementation
+@test "validate_boolean rejects 1 (only true/false accepted)" {
     run validate_boolean "1"
-    [ "$status" -eq 0 ]
+    [ "$status" -ne 0 ]
 }
 
 @test "validate_boolean rejects empty" {

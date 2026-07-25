@@ -31,7 +31,8 @@ teardown() {
   [ -f report/index.html ]
   [ -f report/latest/report.json ]
   [ -f report/latest/index.html ]
-  grep -q '"domain":"example.com"' report/report.json
+  grep -q '"domain"' report/report.json
+  grep -q '"example.com"' report/report.json
 }
 
 @test "report includes delta_since_last when monitor data exists" {

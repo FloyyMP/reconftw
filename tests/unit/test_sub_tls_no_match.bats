@@ -40,6 +40,8 @@ SH
   chmod +x "$MOCK_BIN/tlsx"
 
   source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
   export DOMAIN_ESCAPED
   DOMAIN_ESCAPED=$(escape_domain_regex "$domain")
   export DOMAIN_MATCH_REGEX

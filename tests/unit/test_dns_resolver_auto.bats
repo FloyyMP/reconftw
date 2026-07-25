@@ -12,6 +12,8 @@ setup() {
     source "$project_root/reconftw.cfg" 2>/dev/null || true
     export SCRIPTPATH="$project_root"
     source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
 }
 
 @test "_ip_is_public_ipv4 identifies public and non-public ranges" {

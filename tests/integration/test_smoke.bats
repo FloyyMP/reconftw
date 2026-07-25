@@ -39,32 +39,44 @@ setup() {
 
 @test "source-only mode works without side effects" {
     run timeout 10 bash -c "source '$SCRIPTPATH/reconftw.sh' --source-only && echo 'OK'"
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
     [ "$status" -eq 0 ]
     [[ "$output" == *"OK"* ]]
 }
 
 @test "sanitize_domain function is available after source" {
     run timeout 10 bash -c "source '$SCRIPTPATH/reconftw.sh' --source-only && type sanitize_domain"
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
     [ "$status" -eq 0 ]
 }
 
 @test "validate_domain function is available after source" {
     run timeout 10 bash -c "source '$SCRIPTPATH/reconftw.sh' --source-only && type validate_domain"
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
     [ "$status" -eq 0 ]
 }
 
 @test "should_run_deep function is available after source" {
     run timeout 10 bash -c "source '$SCRIPTPATH/reconftw.sh' --source-only && type should_run_deep"
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
     [ "$status" -eq 0 ]
 }
 
 @test "checkpoint functions are available after source" {
     run timeout 10 bash -c "source '$SCRIPTPATH/reconftw.sh' --source-only && type checkpoint_init && type checkpoint_save"
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
     [ "$status" -eq 0 ]
 }
 
 @test "circuit_breaker functions are available after source" {
     run timeout 10 bash -c "source '$SCRIPTPATH/reconftw.sh' --source-only && type circuit_breaker_is_open"
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
     [ "$status" -eq 0 ]
 }
 

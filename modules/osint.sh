@@ -589,10 +589,8 @@ function domain_info() {
         local msftrecon_output msftrecon_rc
         msftrecon_output=$(mktemp)
         msftrecon_rc=0
-        if ! run_command "${tools}/msftrecon/venv/bin/python3" "${tools}/msftrecon/msftrecon/msftrecon.py" -d "${domain}" \
-            >"$msftrecon_output" 2>>"$LOGFILE"; then
-            msftrecon_rc=$?
-        fi
+        run_command "${tools}/msftrecon/venv/bin/python3" "${tools}/msftrecon/msftrecon/msftrecon.py" -d "${domain}" \
+            >"$msftrecon_output" 2>>"$LOGFILE" || msftrecon_rc=$?
 
         if [[ $msftrecon_rc -eq 0 ]]; then
             cat "$msftrecon_output" >osint/azure_tenant_domains.txt

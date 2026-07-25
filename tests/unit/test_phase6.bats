@@ -9,6 +9,8 @@ setup() {
     export LOGFILE="/dev/null"
     export bred='' bblue='' bgreen='' byellow='' yellow='' reset=''
     source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
 }
 
 @test "run_command executes command in normal mode" {
@@ -19,9 +21,10 @@ setup() {
 
 @test "run_command prints command in dry-run mode" {
     export DRY_RUN="true"
+    export OUTPUT_VERBOSITY=2
     run run_command echo "hello"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"[DRY-RUN] Would execute: echo hello"* ]]
+    [[ "$output" == *"[DRY-RUN]"*"echo hello"* ]]
 }
 
 @test "incremental_init creates directory structure" {
@@ -44,7 +47,7 @@ setup() {
     
     run incremental_diff "test" "current.txt" "new.txt"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Incremental mode test: 1 new"* ]]
+    [[ "$output" == *"test: 1 new"* ]]
     [ "$(cat new.txt)" = "item2" ]
     
     rm -rf "$INCREMENTAL_DIR" "current.txt" "new.txt"

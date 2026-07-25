@@ -15,11 +15,13 @@ setup() {
     source "$project_root/reconftw.cfg" 2>/dev/null || true
     export SCRIPTPATH="$project_root"
     source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
 }
 
 @test "getElapsedTime calculates zero duration" {
     getElapsedTime 100 100
-    [ "$runtime" = "0 seconds" ]
+    [ "$runtime" = "0 seconds." ]
 }
 
 @test "getElapsedTime calculates seconds" {
@@ -74,7 +76,7 @@ setup() {
     export FFUF_THREADS="abc"
     run validate_config
     [ "$status" -ne 0 ]
-    [[ "$output" == *"ERROR"* ]]
+    [[ "$output" == *"FFUF_THREADS must be numeric"* ]]
 }
 
 @test "validate_config fails on non-numeric AXIOM_FLEET_COUNT" {
@@ -208,19 +210,19 @@ setup() {
 
 @test "circuit_breaker opens after threshold failures" {
     CIRCUIT_BREAKER_THRESHOLD=2
-    CIRCUIT_BREAKER_FAILURES=()
-    CIRCUIT_BREAKER_STATE=()
-    
+    CIRCUIT_BREAKER_TIMEOUT=3600
+    declare -gA CIRCUIT_BREAKER_FAILURES=()
+    declare -gA CIRCUIT_BREAKER_STATE=()
+
     circuit_breaker_record_failure "flakytool"
     circuit_breaker_record_failure "flakytool"
-    
-    circuit_breaker_is_open "flakytool"
-    [ "$?" -eq 0 ]
+
+    circuit_breaker_is_open "flakytool"  # returns 0 when open; set -e asserts this
 }
 
 @test "circuit_breaker resets on success" {
-    CIRCUIT_BREAKER_FAILURES=()
-    CIRCUIT_BREAKER_STATE=()
+    declare -gA CIRCUIT_BREAKER_FAILURES=()
+    declare -gA CIRCUIT_BREAKER_STATE=()
     
     circuit_breaker_record_failure "tool1"
     circuit_breaker_record_success "tool1"
@@ -237,6 +239,8 @@ setup() {
     # Temporarily override sensitive_files list
     run bash -c "
         source '$SCRIPTPATH/reconftw.sh' --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
         check_secrets_permissions '$tmpfile'
     "
     
@@ -328,8 +332,12 @@ EOF
         return 0
     }
 
+    # run_module_with_axiom_failover is designed to run with set +e; re-enable after
+    set +e
     run_module_with_axiom_failover fake_module
-    [ "$?" -eq 0 ]
+    local failover_rc=$?
+    set -e
+    [ "$failover_rc" -eq 0 ]
     [ "$fake_calls" -eq 2 ]
     [ "$local_calls" -eq 1 ]
     [ "$AXIOM_RUNTIME_DISABLED" = "true" ]

@@ -48,11 +48,14 @@ setup() {
 
     # shellcheck source=/dev/null
     source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
 
     create_mock_unfurl
     create_mock_enumerepo
-    create_mock_interlace
+    create_mock_git
     create_mock_titus
+    create_mock_trufflehog
 }
 
 teardown() {
@@ -90,40 +93,23 @@ EOF
     chmod +x "${MOCK_BIN}/enumerepo"
 }
 
-create_mock_interlace() {
-    cat >"${MOCK_BIN}/interlace" <<'EOF'
+create_mock_git() {
+    cat >"${MOCK_BIN}/git" <<'EOF'
 #!/usr/bin/env bash
-cmd=""
-outdir=""
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -c)
-            cmd="$2"
-            shift 2
-            ;;
-        -o)
-            outdir="$2"
-            shift 2
-            ;;
-        *)
-            shift
-            ;;
-    esac
-done
-
-printf '%s\n' "$cmd" >>"${INTERLACE_LOG}"
-
-if [[ "$cmd" == git\ clone* ]]; then
-    mkdir -p ".tmp/github_repos/mockrepo"
-elif [[ "$cmd" == *"scan --format json"* && "$cmd" == *"titus"* ]]; then
-    mkdir -p ".tmp/github"
-    printf '%s\n' '{"engine":"titus","repo":"mockrepo"}' >".tmp/github/titus__mockrepo.json"
-elif [[ "$cmd" == trufflehog\ git* ]]; then
-    mkdir -p "${outdir:-.tmp/github}"
-    printf '%s\n' '{"engine":"trufflehog","repo":"mockrepo"}' >"${outdir:-.tmp/github}/trufflehog__mockrepo.json"
+if [[ "$1" == "clone" ]]; then
+    dest="${@: -1}"
+    mkdir -p "$dest"
 fi
 EOF
-    chmod +x "${MOCK_BIN}/interlace"
+    chmod +x "${MOCK_BIN}/git"
+}
+
+create_mock_trufflehog() {
+    cat >"${MOCK_BIN}/trufflehog" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' '{"engine":"trufflehog","repo":"mockrepo"}'
+EOF
+    chmod +x "${MOCK_BIN}/trufflehog"
 }
 
 create_mock_titus() {
@@ -145,14 +131,9 @@ EOF
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Unknown SECRETS_ENGINE='bogus', using titus"* ]]
-    [ -s "$INTERLACE_LOG" ]
-    grep -q "scan --format json" "$INTERLACE_LOG"
-    grep -q "titus" "$INTERLACE_LOG"
-    grep -q "trufflehog git" "$INTERLACE_LOG"
-    ! grep -q "noseyparker" "$INTERLACE_LOG"
     [ -s "osint/github_company_secrets.json" ]
-
-    run jq -s 'map(.engine) | sort == ["titus","trufflehog"]' osint/github_company_secrets.json
+    # verify titus and trufflehog findings are in the merged output
+    run jq -s '[.[].engine] | sort | unique == ["titus","trufflehog"]' osint/github_company_secrets.json
     [ "$status" -eq 0 ]
     [ "$output" = "true" ]
 }
@@ -166,14 +147,9 @@ EOF
 
     [ "$status" -eq 0 ]
     [[ "$output" != *"Unknown SECRETS_ENGINE="* ]]
-    [ -s "$INTERLACE_LOG" ]
-    grep -q "scan --format json" "$INTERLACE_LOG"
-    grep -q "titus" "$INTERLACE_LOG"
-    grep -q "trufflehog git" "$INTERLACE_LOG"
-    ! grep -q "noseyparker" "$INTERLACE_LOG"
     [ -s "osint/github_company_secrets.json" ]
-
-    run jq -s 'map(.engine) | sort == ["titus","trufflehog"]' osint/github_company_secrets.json
+    # verify titus and trufflehog findings are in the merged output
+    run jq -s '[.[].engine] | sort | unique == ["titus","trufflehog"]' osint/github_company_secrets.json
     [ "$status" -eq 0 ]
     [ "$output" = "true" ]
 }

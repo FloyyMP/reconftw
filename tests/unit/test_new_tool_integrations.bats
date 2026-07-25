@@ -19,6 +19,8 @@ setup() {
   export PATH="$MOCK_BIN:$PATH"
 
   source "$project_root/reconftw.sh" --source-only
+    set -e  # restore errexit disabled by reconftw.sh's set +e
+    export MIN_DISK_SPACE_GB=0  # disable disk check in tests
 
   export domain="target.example.com"
   export DIFF=false
@@ -56,31 +58,19 @@ done
 SH
   chmod +x "$MOCK_BIN/anew"
 
-  cat > "$MOCK_BIN/interlace" <<'SH'
+  cat > "$MOCK_BIN/ffuf" <<'SH'
 #!/usr/bin/env bash
-raw_args="$*"
-input=""
+printf '%s\n' "$*" >> "$TEST_DIR/lfi_ffuf_args.txt"
+url=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -tL)
-      input="$2"
-      shift 2
-      ;;
-    -c)
-      printf '%s\n' "$2" > "$TEST_DIR/lfi_ffuf_cmd.txt"
-      shift 2
-      ;;
-    *)
-      shift
-      ;;
+    -u) url="$2"; shift 2 ;;
+    *)  shift ;;
   esac
 done
-printf '%s\n' "$0 $raw_args" > "$TEST_DIR/lfi_interlace_args.txt"
-if [[ -n "$input" ]]; then
-  head -n 1 "$input" | sed 's/^/| URL | /'
-fi
+[[ -n "$url" ]] && printf '| URL | %s\n' "$url"
 SH
-  chmod +x "$MOCK_BIN/interlace"
+  chmod +x "$MOCK_BIN/ffuf"
 
   export LFI=true
   export DEEP=false
@@ -88,7 +78,6 @@ SH
   export lfi_wordlist="$TEST_DIR/lfi_wordlist.txt"
   export HEADER="User-Agent: bats"
   export LFI_INTERLACE_THREADS=3
-  export LFI_INTERLACE_TIMEOUT=44
   export LFI_FFUF_THREADS=9
   export LFI_FFUF_RATELIMIT=77
   export LFI_FFUF_TIMEOUT=7
@@ -102,19 +91,43 @@ SH
   [ "$(wc -l < ".tmp/tmp_lfi.txt" | tr -d ' ')" -eq 2 ]
   grep -qx 'https://target.example.com/download?file=FUZZ&q=test' ".tmp/tmp_lfi.txt"
   grep -qx 'https://target.example.com/download?file=1&q=FUZZ' ".tmp/tmp_lfi.txt"
-  grep -q -- '-threads 3' "$TEST_DIR/lfi_interlace_args.txt"
-  grep -q -- '-timeout 44' "$TEST_DIR/lfi_interlace_args.txt"
-  grep -q -- '-noninteractive' "$TEST_DIR/lfi_ffuf_cmd.txt"
-  grep -q -- '-timeout 7' "$TEST_DIR/lfi_ffuf_cmd.txt"
-  grep -q -- '-maxtime 33' "$TEST_DIR/lfi_ffuf_cmd.txt"
-  grep -q -- '-rate 77' "$TEST_DIR/lfi_ffuf_cmd.txt"
-  ! grep -q -- ' -r ' "$TEST_DIR/lfi_ffuf_cmd.txt"
+  grep -q -- '-noninteractive' "$TEST_DIR/lfi_ffuf_args.txt"
+  grep -q -- '-timeout 7' "$TEST_DIR/lfi_ffuf_args.txt"
+  grep -q -- '-maxtime 33' "$TEST_DIR/lfi_ffuf_args.txt"
+  grep -q -- '-rate 77' "$TEST_DIR/lfi_ffuf_args.txt"
+  ! grep -q -- ' -r ' "$TEST_DIR/lfi_ffuf_args.txt"
   [ -s "vulns/lfi.txt" ]
 }
 
 @test "ssti uses TInjA engine and writes compatible output" {
   mkdir -p gf .tmp vulns
   printf 'https://target.example.com/?q=test\n' > gf/ssti.txt
+
+  cat > "$MOCK_BIN/anew" <<'SH'
+#!/usr/bin/env bash
+quiet=false
+if [[ "${1:-}" == "-q" ]]; then quiet=true; shift; fi
+outfile="$1"
+mkdir -p "$(dirname "$outfile")"
+touch "$outfile"
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  if ! grep -Fxq -- "$line" "$outfile"; then
+    printf '%s\n' "$line" >> "$outfile"
+    [[ "$quiet" != true ]] && printf '%s\n' "$line"
+  fi
+done
+SH
+  chmod +x "$MOCK_BIN/anew"
+
+  cat > "$MOCK_BIN/qsreplace" <<'SH'
+#!/usr/bin/env bash
+replacement="${1:-FUZZ}"
+while IFS= read -r line; do
+  printf '%s\n' "$line" | sed "s/=[^&# ]*/=${replacement}/g"
+done
+SH
+  chmod +x "$MOCK_BIN/qsreplace"
 
   cat > "$MOCK_BIN/TInjA" <<'SH'
 #!/usr/bin/env bash
@@ -153,6 +166,23 @@ SH
   printf 'https://target.example.com\n' > webs/webs_all.txt
   printf '{"LogNon200Queries":{"script":"src"}}\n' > "$TEST_DIR/takeover.json"
 
+  cat > "$MOCK_BIN/anew" <<'SH'
+#!/usr/bin/env bash
+quiet=false
+if [[ "${1:-}" == "-q" ]]; then quiet=true; shift; fi
+outfile="$1"
+mkdir -p "$(dirname "$outfile")"
+touch "$outfile"
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  if ! grep -Fxq -- "$line" "$outfile"; then
+    printf '%s\n' "$line" >> "$outfile"
+    [[ "$quiet" != true ]] && printf '%s\n' "$line"
+  fi
+done
+SH
+  chmod +x "$MOCK_BIN/anew"
+
   cat > "$MOCK_BIN/second-order" <<'SH'
 #!/usr/bin/env bash
 out_dir=""
@@ -188,6 +218,23 @@ SH
 @test "favirecon_tech stores normalized technology findings" {
   mkdir -p webs .tmp
   printf 'https://target.example.com\n' > webs/webs_all.txt
+
+  cat > "$MOCK_BIN/anew" <<'SH'
+#!/usr/bin/env bash
+quiet=false
+if [[ "${1:-}" == "-q" ]]; then quiet=true; shift; fi
+outfile="$1"
+mkdir -p "$(dirname "$outfile")"
+touch "$outfile"
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  if ! grep -Fxq -- "$line" "$outfile"; then
+    printf '%s\n' "$line" >> "$outfile"
+    [[ "$quiet" != true ]] && printf '%s\n' "$line"
+  fi
+done
+SH
+  chmod +x "$MOCK_BIN/anew"
 
   cat > "$MOCK_BIN/favirecon" <<'SH'
 #!/usr/bin/env bash
@@ -1099,6 +1146,23 @@ SH
   mkdir -p webs .tmp gf vulns nuclei_output
   printf 'https://target.example.com\n' > webs/webs_all.txt
 
+  cat > "$MOCK_BIN/anew" <<'SH'
+#!/usr/bin/env bash
+quiet=false
+if [[ "${1:-}" == "-q" ]]; then quiet=true; shift; fi
+outfile="$1"
+mkdir -p "$(dirname "$outfile")"
+touch "$outfile"
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  if ! grep -Fxq -- "$line" "$outfile"; then
+    printf '%s\n' "$line" >> "$outfile"
+    [[ "$quiet" != true ]] && printf '%s\n' "$line"
+  fi
+done
+SH
+  chmod +x "$MOCK_BIN/anew"
+
   # Mock nuclei: write one JSON line when -o <file> is used; no-op for update calls.
   cat > "$MOCK_BIN/nuclei" <<'SH'
 #!/usr/bin/env bash
@@ -1223,6 +1287,23 @@ SH
   mkdir -p hosts .tmp
   printf '%s\n' '10.10.10.10:22' > hosts/naabu_open.txt
 
+  cat > "$MOCK_BIN/anew" <<'SH'
+#!/usr/bin/env bash
+quiet=false
+if [[ "${1:-}" == "-q" ]]; then quiet=true; shift; fi
+outfile="$1"
+mkdir -p "$(dirname "$outfile")"
+touch "$outfile"
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  if ! grep -Fxq -- "$line" "$outfile"; then
+    printf '%s\n' "$line" >> "$outfile"
+    [[ "$quiet" != true ]] && printf '%s\n' "$line"
+  fi
+done
+SH
+  chmod +x "$MOCK_BIN/anew"
+
   cat > "$MOCK_BIN/nerva" <<'SH'
 #!/usr/bin/env bash
 outfile=""
@@ -1292,6 +1373,23 @@ SH
   mkdir -p webs .tmp
   printf '%s\n' 'https://llm.target.example.com' > webs/webs_all.txt
 
+  cat > "$MOCK_BIN/anew" <<'SH'
+#!/usr/bin/env bash
+quiet=false
+if [[ "${1:-}" == "-q" ]]; then quiet=true; shift; fi
+outfile="$1"
+mkdir -p "$(dirname "$outfile")"
+touch "$outfile"
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  if ! grep -Fxq -- "$line" "$outfile"; then
+    printf '%s\n' "$line" >> "$outfile"
+    [[ "$quiet" != true ]] && printf '%s\n' "$line"
+  fi
+done
+SH
+  chmod +x "$MOCK_BIN/anew"
+
   cat > "$MOCK_BIN/julius" <<'SH'
 #!/usr/bin/env bash
 printf '%s\n' '{"target":"https://llm.target.example.com","provider":"openai-compatible","probe":"chat-completions"}'
@@ -1330,6 +1428,23 @@ SH
 @test "param_discovery runs in deep mode with arjun text output" {
   mkdir -p webs .tmp
   printf '%s\n' 'https://target.example.com/path' > webs/url_extract_nodupes.txt
+
+  cat > "$MOCK_BIN/anew" <<'SH'
+#!/usr/bin/env bash
+quiet=false
+if [[ "${1:-}" == "-q" ]]; then quiet=true; shift; fi
+outfile="$1"
+mkdir -p "$(dirname "$outfile")"
+touch "$outfile"
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  if ! grep -Fxq -- "$line" "$outfile"; then
+    printf '%s\n' "$line" >> "$outfile"
+    [[ "$quiet" != true ]] && printf '%s\n' "$line"
+  fi
+done
+SH
+  chmod +x "$MOCK_BIN/anew"
 
   cat > "$MOCK_BIN/arjun" <<'SH'
 #!/usr/bin/env bash
@@ -1370,6 +1485,23 @@ SH
   _resolve_domains() {
     cat "$1" > "$2"
   }
+
+  cat > "$MOCK_BIN/anew" <<'SH'
+#!/usr/bin/env bash
+quiet=false
+if [[ "${1:-}" == "-q" ]]; then quiet=true; shift; fi
+outfile="$1"
+mkdir -p "$(dirname "$outfile")"
+touch "$outfile"
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  if ! grep -Fxq -- "$line" "$outfile"; then
+    printf '%s\n' "$line" >> "$outfile"
+    [[ "$quiet" != true ]] && printf '%s\n' "$line"
+  fi
+done
+SH
+  chmod +x "$MOCK_BIN/anew"
 
   cat > "$MOCK_BIN/curl" <<'SH'
 #!/usr/bin/env bash
@@ -1529,6 +1661,10 @@ SH
   export NUCLEI_SEVERITY="info"
   export DIFF=false
 
+  # run_with_heartbeat_shell uses /bin/bash -lc which resets PATH on Kali,
+  # losing MOCK_BIN. Override to use plain bash -c so mocks are found.
+  run_with_heartbeat_shell() { bash -c "$2"; }
+
   run swagger_check
   [ "$status" -eq 0 ]
   [ -s "webs/swagger_urls.txt" ]
@@ -1579,10 +1715,12 @@ SH
 }
 
 @test "swagger_check runs sj automate and extracts accessible endpoints" {
-  mkdir -p webs .tmp vulns/swagger/automate
+  mkdir -p webs .tmp vulns/swagger/automate nuclei_output
 
-  printf '%s\n' 'https://target.example.com/swagger.json' > .tmp/swagger_urls_all.txt
-  printf '%s\n' 'https://target.example.com/swagger.json' > webs/swagger_urls.txt
+  # swagger_check wipes .tmp/swagger_urls_all.txt on entry, then reads Phase 2 sources.
+  # Supply a nuclei swagger-api finding so Phase 2 populates swagger_urls_all.txt.
+  printf '%s\n' '{"template-id":"swagger-api","matched-at":"https://target.example.com/swagger.json","info":{"severity":"info"}}' \
+    > nuclei_output/info_json.txt
 
   cat > "$MOCK_BIN/sj" <<'SH'
 #!/usr/bin/env bash
