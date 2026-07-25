@@ -28,7 +28,7 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - Go (latest, min ~1.21) - Primary binary language for ~55 security tools installed via `go install @latest`
 ## Runtime
 - Linux (Debian/Ubuntu/RHEL/Arch) or macOS (Apple Silicon / Intel)
-- Docker: Ubuntu 24.04 base image (`Docker/Dockerfile`)
+- Docker: Ubuntu 24.04 base image (`Docker/Dockerfile`); no automated CI push — build manually with `docker build -f Docker/Dockerfile .`
 - ARM64/aarch64, ARMv6l/v7l, and x86_64 all supported for Go binary installs
 - `getopt` (GNU getopt required on macOS via `brew install gnu-getopt`)
 - `nproc` / `sysctl -n hw.ncpu` for CPU core auto-detection
@@ -208,6 +208,8 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 ## Conventions
 
 ## Shell Settings
+- `reconftw.sh`: `set -o pipefail; set -E; set +e` — pipefail catches pipe failures; `-E` propagates ERR trap through functions; `+e` keeps the run alive so a single tool failure doesn't abort everything
+- `lib/validation.sh`: `set -o pipefail` only — stricter because it's a pure-library file with no tool-execution side effects
 ## Source Guard Pattern
 - `lib/common.sh`: `[[ -n "$_COMMON_SH_LOADED" ]] && return 0`
 - `lib/parallel.sh`: `[[ -n "$_PARALLEL_SH_LOADED" ]] && return 0`
@@ -223,6 +225,10 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - Runtime state: `LOGFILE`, `SCRIPTPATH`, `DIFF`, `DRY_RUN`, `AXIOM`
 - Error codes: `E_SUCCESS=0`, `E_INVALID_DOMAIN=20`, `E_INVALID_IP=21` (readonly, defined in `lib/validation.sh`)
 ## CLI Flag Pattern
+- CLI flags set `CLI_*` variables **before** sourcing `reconftw.cfg` (e.g. `CLI_DOMAIN`, `CLI_SUBDOMAINS`)
+- After sourcing, `CLI_*` are re-applied in explicit `if` blocks so they always win over config values
+- Pattern: `if [[ -n "${CLI_DOMAIN:-}" ]]; then domain="$CLI_DOMAIN"; fi`
+- This two-pass approach means users can override any config default from the command line without editing files
 ## Output / UI Conventions
 - `OUTPUT_VERBOSITY=0` (quiet): only errors/FAIL printed
 - `OUTPUT_VERBOSITY=1` (normal, default): OK/WARN/FAIL/SKIP status lines
@@ -250,14 +256,25 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 | `is_in_scope_host()` | Anchored hostname scope check (prevents substring false positives) |
 | `filter_in_scope_urls()` | Python3-based URL scope check (scheme, userinfo, host) |
 ## Path and CWD Conventions
+- `start()` calls `cd "$dir"` so all relative paths inside module functions resolve to `Recon/<domain>/`
+- `reconftw.sh` captures `startdir=${PWD}` before any `cd` so relative input paths (e.g. `-l domains.txt`) resolve against the original working directory
+- Module functions must never `cd` without restoring CWD — use absolute paths or subshells for one-off directory changes
 ## Parallel Execution
+- `parallel_funcs N fn_a fn_b fn_c` — spawns each function as a background subshell
+- `_throttle_jobs` uses `wait -n` (bash 4.3+) to keep at most N jobs running at once
+- Each job's stdout is captured to a per-job temp file; output is replayed on completion per `PARALLEL_LOG_MODE` (summary / tail / full)
+- A heartbeat loop emits live progress to the terminal at verbosity ≥ 1
 ## Import / Sourcing Order
+- Covered by the module loading order in the Frameworks section above; no circular imports by design
 ## Logging
 - All tool output redirected to `$LOGFILE`: `command ... 2>>"$LOGFILE" >/dev/null`
 - Structured JSON logging via `log_json level func message [key=val]` (optional, `STRUCTURED_LOGGING=true`)
 - `redact_secrets()` scrubs `REDACT_VARS` and `REGISTERED_SECRETS` from log lines
 - `register_secret "$value"` must be called before logging any secret value
 ## Comments
+- Only when the WHY is non-obvious: a hidden constraint, a subtle invariant, a workaround for a specific bug
+- No what-it-does comments; no task/fix/caller references ("added for X", "used by Y")
+- One short line max — no multi-line comment blocks
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
@@ -265,6 +282,14 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 
 ## System Overview
 ```text
+CLI (reconftw.sh)
+  └─ loads libs: validation → common → ui → parallel
+  └─ loads modules: utils → core → osint → subdomains → web → vulns → axiom → modes
+  └─ parses getopt → sources reconftw.cfg → re-applies CLI_* overrides
+  └─ dispatches to modes.sh workflow function
+       └─ start() creates Recon/<domain>/ tree, sets $dir / $called_fn_dir
+       └─ module functions called (via run_command / parallel_funcs)
+       └─ end() triggers AI report, export, notifications, summary
 ```
 ## Component Responsibilities
 | Component | Responsibility | File |
@@ -316,9 +341,16 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - Depends on: `start()` in modes.sh creates the directory tree
 ## Data Flow
 ### Primary Recon Request Path (`-r` / `--recon`)
+`reconftw.sh` → parse getopt → source `reconftw.cfg` → re-apply `CLI_*` → dispatch to `recon()` in `modes.sh` → `start()` (creates output tree) → `parallel_funcs` over [osint, subs_menu, webs_menu, vulns groups] → `end()` (AI report, export, summary)
+
 ### Function Execution Path (every leaf module function)
+checkpoint guard (`[[ ! -f "$called_fn_dir/.$fn" ]] || [[ $DIFF == true ]]`) → `start_func` (log, timestamp) → `run_command <tool> <args>` → pipe output through `anew` into result file → `end_func` (writes checkpoint sentinel, logs elapsed time, emits status badge)
+
 ### Parallel Execution Path
+`parallel_funcs N fn_a fn_b …` → background subshells launched → `_throttle_jobs` (wait -n loop) caps concurrency at N → each job writes to a temp log → on completion, output replayed per `PARALLEL_LOG_MODE` → failures increment `RECON_*_PARALLEL_FAILURES`
+
 ### Axiom Distributed Scan Flow
+`axiom_selected()` checks `AXIOM=true` → `run_command` routes through `axiom_run_command()` → uploads input list to fleet → runs tool across distributed instances → downloads merged output → `run_module_with_axiom_failover` retries locally on fleet failure
 - Global bash variables throughout (no encapsulation). Config vars, target vars (`domain`, `dir`, `called_fn_dir`, `LOGFILE`), and result counters are all globals
 - `passive()` saves/restores module-enable globals before overriding them (`modules/modes.sh:549-611`)
 ## Key Abstractions
@@ -353,6 +385,17 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - Responsibilities: AI report, cleanup, Faraday, screenshot diffs, plugin events, hotlist, `export_reports()`, timing summary
 ## Output Directory Structure
 ```
+Recon/<domain>/
+├── .called_fn/       # checkpoint sentinels (.funcname per completed function)
+├── .log/             # per-run log files
+├── .tmp/             # temporary working files
+├── subdomains/       # subdomain enumeration results
+├── webs/             # web probe results, JS, URLs
+├── hosts/            # port scan / service results
+├── vulns/            # vulnerability findings
+├── osint/            # OSINT data (emails, dorks, cloud, leaks)
+├── screenshots/      # webpage screenshots
+└── ai_result/        # AI-generated report output
 ```
 ## Verbosity and Output Controls
 - `0` (quiet): Only errors and final summary printed to terminal; banner suppressed
@@ -380,6 +423,11 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - `run_module_with_axiom_failover` catches axiom mid-run failures and retries locally
 - Circuit-breaker helpers (`circuit_breaker_is_open`, `circuit_breaker_record_failure`) in `modules/utils.sh:1190` for persistent tool failures
 ## Cross-Cutting Concerns
+- **Notifications**: `notify` (projectdiscovery/notify) called by `notification()` in `core.sh`; triggered on function completion, errors, and key findings; provider config at `~/.config/notify/provider-config.yaml`
+- **Rate limiting**: `ADAPTIVE_RATE_LIMIT` adjusts per-tool rates on 429/503 errors; `circuit_breaker_*` helpers in `utils.sh` cut off tools that fail repeatedly
+- **Secrets**: `redact_secrets()` / `register_secret()` scrub sensitive values from log lines before writing; `secrets.cfg` is auto-sourced and gitignored
+- **Plugins**: event hooks in `core.sh` fire `start`/`end`/`finding` events to scripts in `plugins/`
+- **Caching**: `cache_get` / `cache_set` in `utils.sh`; TTL controlled per resource type by `CACHE_MAX_AGE_DAYS_*` vars
 <!-- GSD:architecture-end -->
 
 <!-- GSD:skills-start source:skills/ -->
@@ -387,25 +435,3 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 
 No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
 <!-- GSD:skills-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow Enforcement
-
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd-debug` for investigation and bug fixing
-- `/gsd-execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-
-
-<!-- GSD:profile-start -->
-## Developer Profile
-
-> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
