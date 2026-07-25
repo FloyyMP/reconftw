@@ -447,7 +447,7 @@ function banner() {
    ░░   ░    ░   ░        ░ ░ ░ ▒     ░   ░ ░  ░ ░      ░        ░   ░
     ░        ░  ░░ ░          ░ ░           ░                      ░
 
- ${reconftw_version}                                         by @six2dez
+ ${reconftw_version}                                         by @FloyyMP
 
 EOF
 }
@@ -1297,7 +1297,7 @@ function initial_setup() {
 	        ["notify_provider_config"]="https://gist.githubusercontent.com/six2dez/23a996bca189a11e88251367e6583053/raw ${HOME}/.config/notify/provider-config.yaml"
 	        ["getjswords"]="https://raw.githubusercontent.com/m4ll0k/Bug-Bounty-Toolz/master/getjswords.py ${tools}/getjswords.py"
 	        ["subdomains_huge"]="https://raw.githubusercontent.com/n0kovo/n0kovo_subdomains/main/n0kovo_subdomains_huge.txt ${subs_wordlist_big}"
-	        ["trusted_resolvers"]="https://gist.githubusercontent.com/six2dez/ae9ed7e5c786461868abd3f2344401b6/raw ${resolvers_trusted}"
+	        ["trusted_resolvers"]="https://gist.githubusercontent.com/FloyyMP/df7f37c41662622434fa8890e6c19ca2/raw/trusted_resolvers.txt ${resolvers_trusted}"
 	        ["resolvers"]="https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt ${resolvers}"
 	        ["axiom_config"]="https://gist.githubusercontent.com/six2dez/6e2d9f4932fd38d84610eb851014b26e/raw ${tools}/axiom_config.sh"
 	    )
@@ -1375,7 +1375,7 @@ function initial_setup() {
             fi
 
             [[ ! -s $resolvers ]] && wget -q -O "$resolvers" https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt
-            [[ ! -s $resolvers_trusted ]] && wget -q -O "$resolvers_trusted" https://gist.githubusercontent.com/six2dez/ae9ed7e5c786461868abd3f2344401b6/raw/trusted_resolvers.txt
+            [[ ! -s $resolvers_trusted ]] && wget -q -O "$resolvers_trusted" https://gist.githubusercontent.com/FloyyMP/df7f37c41662622434fa8890e6c19ca2/raw/trusted_resolvers.txt
             printf "%bResolvers updated.%b\n" "$yellow" "$reset"
         fi
         generate_resolvers=false
@@ -1383,7 +1383,7 @@ function initial_setup() {
         if [[ -s $resolvers && $(find "$resolvers" -mtime +1 -print) ]]; then
             printf "%bChecking resolvers lists...\nAccurate resolvers are the key to great results.\nDownloading new resolvers.%b\n" "$yellow" "$reset"
             wget -q -O "$resolvers" https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt
-            wget -q -O "$resolvers_trusted" https://gist.githubusercontent.com/six2dez/ae9ed7e5c786461868abd3f2344401b6/raw/trusted_resolvers.txt
+            wget -q -O "$resolvers_trusted" https://gist.githubusercontent.com/FloyyMP/df7f37c41662622434fa8890e6c19ca2/raw/trusted_resolvers.txt
             printf "%bResolvers updated.%b\n" "$yellow" "$reset"
         fi
     fi

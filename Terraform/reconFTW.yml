@@ -2,7 +2,7 @@
 - hosts: all
   become: true
   vars:
-    reconftw_repo: "https://github.com/six2dez/reconftw.git"
+    reconftw_repo: "https://github.com/FloyyMP/reconftw.git"
     reconftw_dest: "/opt/reconftw"
     reconftw_branch_default: "main"
     reconftw_commit: ""                # passed from Terraform; "" means branch-based deploy

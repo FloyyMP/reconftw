@@ -516,7 +516,7 @@ SCRIPTPATH="$(
 [[ -f "${SCRIPTPATH}/secrets.cfg" ]] && . "${SCRIPTPATH}/secrets.cfg"
 
 if [[ -s $CUSTOM_CONFIG ]]; then
-    # shellcheck source=/home/six2dez/Tools/reconftw/custom_config.cfg
+    # shellcheck source=./custom_config.cfg
     . "${CUSTOM_CONFIG}" || {
         _print_error "Error importing custom config"
         exit 1

@@ -185,7 +185,7 @@ ui_header() {
     ui_human_output_enabled || return 0
 
     local header_line
-    header_line=$(printf "reconftw %s by @six2dez | Authorized testing only" "${reconftw_version:-}")
+    header_line=$(printf "reconftw %s by @FloyyMP | Authorized testing only" "${reconftw_version:-}")
     local width
     width=$(ui_term_width)
     local header_rule=""

@@ -1,42 +1,32 @@
 
 <h1 align="center">
   <br>
-  <a href="https://github.com/six2dez/reconftw"><img src="https://github.com/six2dez/reconftw/blob/main/images/banner.png" alt="reconftw"></a>
+  <a href="https://github.com/FloyyMP/reconftw"><img src="https://github.com/FloyyMP/reconftw/blob/main/images/banner.png" alt="reconftw"></a>
   <br>
   reconFTW
   <br>
 </h1>
 
 <p align="center">
-  <a href="https://github.com/six2dez/reconftw/releases/tag/v4.1"><img src="https://img.shields.io/badge/release-v4.1-2ea043?style=for-the-badge" alt="Release"></a>
+  <a href="https://github.com/FloyyMP/reconftw/releases/tag/v4.1"><img src="https://img.shields.io/badge/release-v4.1-2ea043?style=for-the-badge" alt="Release"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="License"></a>
-  <a href="https://github.com/six2dez/reconftw/issues?q=is%3Aissue+is%3Aclosed"><img src="https://img.shields.io/github/issues-closed-raw/six2dez/reconftw.svg?style=for-the-badge" alt="Closed Issues"></a>
-  <a href="https://discord.gg/R5DdXVEdTy"><img src="https://img.shields.io/discord/1048623782912340038.svg?style=for-the-badge&logo=discord&label=discord" alt="Discord"></a>
-  <a href="https://t.me/joinchat/H5bAaw3YbzzmI5co"><img src="https://img.shields.io/badge/telegram-@ReconFTW-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram"></a>
-  <a href="https://twitter.com/Six2dez1"><img src="https://img.shields.io/badge/twitter-@Six2dez1-1D9BF0?style=for-the-badge&logo=x&logoColor=white" alt="Twitter"></a>
+  <a href="https://github.com/FloyyMP/reconftw/issues?q=is%3Aissue+is%3Aclosed"><img src="https://img.shields.io/github/issues-closed-raw/FloyyMP/reconftw.svg?style=for-the-badge" alt="Closed Issues"></a>
 </p>
 
 <p align="center">
-  <a href="https://docs.reconftw.com"><img src="https://img.shields.io/badge/GitBook-%23000000.svg?style=for-the-badge&logo=gitbook&logoColor=white" alt="Docs"></a>
-  <a href="https://github.com/six2dez/reconftw"><img src="https://img.shields.io/badge/Bash%20Script-%23121011.svg?style=for-the-badge&logo=gnu-bash&logoColor=white" alt="Bash Script"></a>
-  <a href="https://github.com/six2dez/reconftw"><img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux"></a>
-  <a href="https://github.com/six2dez/reconftw"><img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=macos&logoColor=F0F0F0" alt="macOS"></a>
-  <a href="https://github.com/six2dez/reconftw"><img src="https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
+  <a href="https://github.com/FloyyMP/reconftw"><img src="https://img.shields.io/badge/Bash%20Script-%23121011.svg?style=for-the-badge&logo=gnu-bash&logoColor=white" alt="Bash Script"></a>
+  <a href="https://github.com/FloyyMP/reconftw"><img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux"></a>
+  <a href="https://github.com/FloyyMP/reconftw"><img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=macos&logoColor=F0F0F0" alt="macOS"></a>
+  <a href="https://github.com/FloyyMP/reconftw"><img src="https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/six2dez/reconftw/actions"><img src="https://img.shields.io/badge/github_actions-%232671E5.svg?style=for-the-badge&logo=githubactions&logoColor=white" alt="GitHub Actions"></a>
-  <a href="https://hub.docker.com/r/six2dez/reconftw"><img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"></a>
-  <a href="https://github.com/six2dez/reconftw/tree/main/Terraform"><img src="https://img.shields.io/badge/terraform-%23844FBA.svg?style=for-the-badge&logo=terraform&logoColor=white" alt="Terraform"></a>
-  <a href="https://github.com/six2dez/reconftw/tree/main/Terraform"><img src="https://img.shields.io/badge/ansible-%231A1918.svg?style=for-the-badge&logo=ansible&logoColor=white" alt="Ansible"></a>
-  <a href="https://github.com/six2dez/reconftw"><img src="https://img.shields.io/badge/Go-00ADD8.svg?style=for-the-badge&logo=go&logoColor=white" alt="Go"></a>
-  <a href="https://github.com/six2dez/reconftw"><img src="https://img.shields.io/badge/Python-3776AB.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python"></a>
-</p>
-
-<p align="center">
-  <a href="https://www.buymeacoffee.com/six2dez"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee"></a>
-  <a href="https://github.com/sponsors/six2dez"><img src="https://img.shields.io/badge/sponsor-30363D?style=for-the-badge&logo=GitHub-Sponsors&logoColor=EA4AAA" alt="GitHub Sponsors"></a>
-  <a href="https://www.paypal.com/paypalme/six2dez"><img src="https://img.shields.io/badge/PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white" alt="PayPal"></a>
+  <a href="https://github.com/FloyyMP/reconftw/actions"><img src="https://img.shields.io/badge/github_actions-%232671E5.svg?style=for-the-badge&logo=githubactions&logoColor=white" alt="GitHub Actions"></a>
+  <a href="https://hub.docker.com/r/FloyyMP/reconftw"><img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"></a>
+  <a href="https://github.com/FloyyMP/reconftw/tree/main/Terraform"><img src="https://img.shields.io/badge/terraform-%23844FBA.svg?style=for-the-badge&logo=terraform&logoColor=white" alt="Terraform"></a>
+  <a href="https://github.com/FloyyMP/reconftw/tree/main/Terraform"><img src="https://img.shields.io/badge/ansible-%231A1918.svg?style=for-the-badge&logo=ansible&logoColor=white" alt="Ansible"></a>
+  <a href="https://github.com/FloyyMP/reconftw"><img src="https://img.shields.io/badge/Go-00ADD8.svg?style=for-the-badge&logo=go&logoColor=white" alt="Go"></a>
+  <a href="https://github.com/FloyyMP/reconftw"><img src="https://img.shields.io/badge/Python-3776AB.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python"></a>
 </p>
 
 **reconFTW** is a powerful automated reconnaissance tool designed for security researchers and penetration testers. It streamlines the process of gathering intelligence on a target by performing subdomain enumeration, vulnerability scanning, OSINT and more. With a modular design, extensive configuration options, and support for distributed scanning via AX Framework, reconFTW is built to deliver comprehensive results efficiently.
@@ -193,7 +183,7 @@ reconFTW is packed with features to make reconnaissance thorough and efficient. 
 
 - **Multithreading**: Optimizes performance ([Interlace](https://github.com/codingo/Interlace)).
 - **Custom Resolvers**: Generates DNS resolvers ([dnsvalidator](https://github.com/vortexau/dnsvalidator)).
-- **Docker Support**: Official Docker image on [DockerHub](https://hub.docker.com/r/six2dez/reconftw).
+- **Docker Support**: Official Docker image on [DockerHub](https://hub.docker.com/r/FloyyMP/reconftw).
 - **AWS Deployment**: Deploys via Terraform and Ansible.
 - **IP/CIDR Support**: Scans IP ranges and CIDR blocks.
 - **Scan Resumption**: Resumes scans from the last completed step.
@@ -203,7 +193,7 @@ reconFTW is packed with features to make reconnaissance thorough and efficient. 
 - **Notifications**: Sends alerts via Slack, Discord, or Telegram ([notify](https://github.com/projectdiscovery/notify)).
 - **Result Zipping**: Compresses and sends results.
 - **Faraday Integration**: Exports results to [Faraday](https://github.com/infobyte/faraday) for reporting .
-- **AI Report Generation**: Generates reports using local AI models ([reconftw_ai](https://github.com/six2dez/reconftw_ai)).
+- **AI Report Generation**: Generates reports using local AI models ([reconftw_ai](https://github.com/FloyyMP/reconftw_ai)).
 - **Quick Rescan Mode**: Skips heavy stages automatically when no new assets are discovered (`--quick-rescan` / `QUICK_RESCAN`).
 - **Hotlist Builder**: Scores and highlights the riskiest assets (`hotlist.txt`) based on new findings.
 - **Command Tracing**: Toggle `SHOW_COMMANDS` to log every executed command into target logs for debugging.
@@ -282,7 +272,7 @@ reconFTW supports multiple installation methods to suit different environments. 
 1) Clone and install
 
 ```yaml
-git clone https://github.com/six2dez/reconftw
+git clone https://github.com/FloyyMP/reconftw
 cd reconftw
 ./install.sh --verbose
 ```
@@ -314,7 +304,7 @@ cd reconftw
 2. **Steps**:
 
    ```bash
-   git clone https://github.com/six2dez/reconftw
+   git clone https://github.com/FloyyMP/reconftw
    cd reconftw
    ./install.sh
    ./reconftw.sh -d target.com -r
@@ -324,14 +314,14 @@ cd reconftw
 - The `install.sh` script installs dependencies, tools, and configures paths (`GOROOT`, `GOPATH`, `PATH`).
 - Set `install_golang=false` in `reconftw.cfg` if Golang is already configured.
 - For existing setups, run `./install.sh --tools` to refresh Go binaries, pipx packages, and repositories without touching system packages.
-- Check the [Installation Guide](https://github.com/six2dez/reconftw/wiki/0.-Installation-Guide) for detailed instructions.
+- Check the [Installation Guide](https://github.com/FloyyMP/reconftw/wiki/0.-Installation-Guide) for detailed instructions.
 
 ### Docker
 
 1. **Pull the Image**:
 
    ```bash
-   docker pull six2dez/reconftw:main
+   docker pull FloyyMP/reconftw:main
    ```
 
 2. **Run the Container**:
@@ -339,7 +329,7 @@ cd reconftw
    ```bash
    docker run -it --rm \
      -v "${PWD}/OutputFolder/:/reconftw/Recon/" \
-     six2dez/reconftw:main -d example.com -r
+     FloyyMP/reconftw:main -d example.com -r
    ```
 
    For a list of targets, bind the list file into the container and reference the in-container path:
@@ -348,7 +338,7 @@ cd reconftw
    docker run -it --rm \
      -v "${PWD}/domains.txt:/reconftw/domains.txt:ro" \
      -v "${PWD}/OutputFolder/:/reconftw/Recon/" \
-     six2dez/reconftw:main -l /reconftw/domains.txt -r
+     FloyyMP/reconftw:main -l /reconftw/domains.txt -r
    ```
 
 3. **View Results**:
@@ -356,7 +346,7 @@ cd reconftw
    - Results are saved in the `OutputFolder` directory on the host (not inside the container).
 
 4. **Customization**:
-   - Modify the Docker image or build your own; see the [Docker Guide](https://github.com/six2dez/reconftw/wiki/4.-Docker).
+   - Modify the Docker image or build your own; see the [Docker Guide](https://github.com/FloyyMP/reconftw/wiki/4.-Docker).
    - To skip Ax tooling in custom builds, pass `--build-arg INSTALL_AXIOM=false`.
    - Mount your notify config at `~/.config/notify/provider-config.yaml` inside the container if you use notifications.
 
@@ -371,7 +361,7 @@ cd reconftw
      -e COLLAB_SERVER="your-server" \
      -e XSS_SERVER="your-server" \
      -v "${PWD}/OutputFolder/:/reconftw/Recon/" \
-     six2dez/reconftw:main -d example.com -r
+     FloyyMP/reconftw:main -d example.com -r
    ```
 
    See [SECURITY.md](SECURITY.md) for full secrets management guidance.
@@ -466,7 +456,7 @@ PATTERNS_DIR="${DATA_DIR}/patterns"
 generate_resolvers=false # Generate custom resolvers with dnsvalidator
 update_resolvers=true # Fetch and rewrite resolvers from trickest/resolvers before DNS resolution
 resolvers_url="https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt"
-resolvers_trusted_url="https://gist.githubusercontent.com/six2dez/ae9ed7e5c786461868abd3f2344401b6/raw/trusted_resolvers.txt"
+resolvers_trusted_url="https://gist.githubusercontent.com/FloyyMP/df7f37c41662622434fa8890e6c19ca2/raw/trusted_resolvers.txt"
 RESOLVER_DOWNLOAD_CONNECT_TIMEOUT=10 # Seconds to wait for resolver download TCP connection
 RESOLVER_DOWNLOAD_MAX_TIME=120 # Hard cap in seconds for resolver downloads
 RESOLVER_DOWNLOAD_RETRY=2 # Retry count for resolver downloads
@@ -849,7 +839,7 @@ DNS_RESOLVE_TIMEOUT=6h
 DNS_HEARTBEAT_INTERVAL_SECONDS=20
 ```
 
-**Full Details**: See the [Configuration Guide](https://github.com/six2dez/reconftw/wiki/3.-Configuration-file).
+**Full Details**: See the [Configuration Guide](https://github.com/FloyyMP/reconftw/wiki/3.-Configuration-file).
 
 ---
 
@@ -987,7 +977,7 @@ reconFTW supports multiple modes and options for flexible reconnaissance. Use th
    ./reconftw.sh -d target.com --report-only --export all
    ```
 
-**Full Guide**: See the [Usage Guide](https://github.com/six2dez/reconftw/wiki/2.-Usage-Guide).
+**Full Guide**: See the [Usage Guide](https://github.com/FloyyMP/reconftw/wiki/2.-Usage-Guide).
 
 ---
 
@@ -1020,7 +1010,7 @@ reconFTW integrates with [Faraday](https://faradaysec.com/) for web-based report
 
 ## 🧠 AI Integration
 
-reconFTW uses AI to generate detailed reports from scan results with the tool [reconftw_ai](https://github.com/six2dez/reconftw_ai).
+reconFTW uses AI to generate detailed reports from scan results with the tool [reconftw_ai](https://github.com/FloyyMP/reconftw_ai).
 
 - **Model**: Configurable AI model (e.g., `llama3:8b` via `AI_MODEL`).
 - **Report Types**: Markdown or plain text (`AI_REPORT_TYPE`).
@@ -1096,7 +1086,7 @@ Use the provided `Makefile` for easy repository management (requires [GitHub CLI
    git clone https://github.com/yourusername/reconftw-data
    cd reconftw-data
    git commit --allow-empty -m "Initial commit"
-   git remote add upstream https://github.com/six2dez/reconftw
+   git remote add upstream https://github.com/FloyyMP/reconftw
    git fetch upstream
    git rebase upstream/main master
    ```
@@ -1221,8 +1211,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributing guide, includin
 
 Quick links:
 
-- [Report a Bug](https://github.com/six2dez/reconftw/issues/new/choose)
-- [Submit a Pull Request](https://github.com/six2dez/reconftw/tree/dev) (target the `dev` branch)
+- [Report a Bug](https://github.com/FloyyMP/reconftw/issues/new/choose)
+- [Submit a Pull Request](https://github.com/FloyyMP/reconftw/tree/dev) (target the `dev` branch)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ---
@@ -1235,26 +1225,8 @@ For security policy, secrets management, and vulnerability reporting, see [SECUR
 
 ## ❓ Need Help?
 
-- **Wiki**: Explore the [reconFTW Wiki](https://github.com/six2dez/reconftw/wiki).
-- **FAQ**: Check the [FAQ](https://github.com/six2dez/reconftw/wiki/7.-FAQs).
-- **Community**: Join the [Discord server](https://discord.gg/R5DdXVEdTy) or [Telegram group](https://t.me/joinchat/TO_R8NYFhhbmI5co).
-
----
-
-## 💖 Support This Project
-
-Support reconFTW’s development through:
-
-- **Buy Me a Coffee**: [buymeacoffee.com/six2dez](https://www.buymeacoffee.com/six2dez)
-
-[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-green.png">](https://www.buymeacoffee.com/six2dez)
-
-- **DigitalOcean Referral**: [Referral Link](https://www.digitalocean.com/?refcode=f362a6e193a1&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge)
-
-<a href="https://www.digitalocean.com/?refcode=f362a6e193a1&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge"><img src="https://web-platforms.sfo2.cdn.digitaloceanspaces.com/WWW/Badge%201.svg" alt="DigitalOcean Referral Badge" /></a>
-
-- **GitHub Sponsorship**: [github.com/sponsors/six2dez](https://github.com/sponsors/six2dez)
-
+- **Wiki**: Explore the [reconFTW Wiki](https://github.com/FloyyMP/reconftw/wiki).
+- **FAQ**: Check the [FAQ](https://github.com/FloyyMP/reconftw/wiki/7.-FAQs).
 ---
 
 ## 🙏 Thanks
@@ -1347,4 +1319,4 @@ reconFTW is licensed under the [MIT License](LICENSE).
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=six2dez/reconftw&type=Date)](https://www.star-history.com/#six2dez/reconftw&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=FloyyMP/reconftw&type=Date)](https://www.star-history.com/#FloyyMP/reconftw&Date)

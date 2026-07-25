@@ -10,7 +10,7 @@ This script automates the deployment of ReconFTW in a Linux Container (LXC) on a
 
 ## Usage
 
-1. Copy the script `bash -c "$(curl -fsSL https://raw.githubusercontent.com/six2dez/reconftw/master/Proxmox/reconftw_prox_deploy.sh)"` to your Proxmox server.
+1. Copy the script `bash -c "$(curl -fsSL https://raw.githubusercontent.com/FloyyMP/reconftw/master/Proxmox/reconftw_prox_deploy.sh)"` to your Proxmox server.
 
 4. Follow the prompts to configure your LXC container. You'll be asked for:
 - Container ID
@@ -44,7 +44,7 @@ pct enter <CONTAINER_ID>
 
 2. ReconFTW will be installed in `/opt/reconftw/`. Navigate to this directory to use ReconFTW.
 
-3. Refer to the [ReconFTW documentation](https://github.com/six2dez/reconftw) for usage instructions.
+3. Refer to the [ReconFTW documentation](https://github.com/FloyyMP/reconftw) for usage instructions.
 
 ## Troubleshooting
 
@@ -58,4 +58,4 @@ Remember to change the default password after accessing the container for the fi
 
 ## Support
 
-For issues related to this deployment script, please open an issue in the GitHub repository. For ReconFTW-specific questions, refer to the [ReconFTW GitHub page](https://github.com/six2dez/reconftw).
+For issues related to this deployment script, please open an issue in the GitHub repository. For ReconFTW-specific questions, refer to the [ReconFTW GitHub page](https://github.com/FloyyMP/reconftw).

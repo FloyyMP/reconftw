@@ -17,7 +17,7 @@ If you discover a security vulnerability, **do not open a public issue**. See [S
    ```bash
    git clone https://github.com/<your-username>/reconftw
    cd reconftw
-   git remote add upstream https://github.com/six2dez/reconftw
+   git remote add upstream https://github.com/FloyyMP/reconftw
    git checkout dev
    ```
 
@@ -216,7 +216,7 @@ The GitHub Actions workflow (`.github/workflows/tests.yml`) runs on every push a
 
 ## Bug Reports
 
-Submit bugs via [GitHub Issues](https://github.com/six2dez/reconftw/issues/new/choose). Include:
+Submit bugs via [GitHub Issues](https://github.com/FloyyMP/reconftw/issues/new/choose). Include:
 
 - reconFTW version (`git describe --tags`)
 - OS and Bash version (`bash --version`)
@@ -226,7 +226,7 @@ Submit bugs via [GitHub Issues](https://github.com/six2dez/reconftw/issues/new/c
 
 ## Feature Requests
 
-Open a [GitHub Issue](https://github.com/six2dez/reconftw/issues/new/choose) with:
+Open a [GitHub Issue](https://github.com/FloyyMP/reconftw/issues/new/choose) with:
 
 - A clear description of the feature
 - Use case / motivation

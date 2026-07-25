@@ -12,9 +12,9 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Instead, please report them responsibly by emailing **six2dez** directly:
+Instead, please report them responsibly by emailing **FloyyMP** directly:
 
-- Email: [six2dez@gmail.com](mailto:six2dez@gmail.com)
+- Email: [FloyyMP@gmail.com](mailto:FloyyMP@gmail.com)
 - Subject: `[reconFTW Security] <brief description>`
 
 You should receive a response within 72 hours acknowledging the report. The maintainer will work with you to understand and remediate the issue before any public disclosure.
@@ -58,7 +58,7 @@ docker run -it --rm \
   -e SHODAN_API_KEY="your-key" \
   -e COLLAB_SERVER="your-server" \
   -v "${PWD}/OutputFolder/:/reconftw/Recon/" \
-  six2dez/reconftw:main -d example.com -r
+  FloyyMP/reconftw:main -d example.com -r
 ```
 
 ## Files to Never Commit
