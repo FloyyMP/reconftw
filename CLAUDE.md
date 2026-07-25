@@ -275,6 +275,36 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - Only when the WHY is non-obvious: a hidden constraint, a subtle invariant, a workaround for a specific bug
 - No what-it-does comments; no task/fix/caller references ("added for X", "used by Y")
 - One short line max — no multi-line comment blocks
+## Testing Conventions
+- **Mandatory test setup boilerplate** after every `source reconftw.sh --source-only`:
+  ```bash
+  source "$project_root/reconftw.sh" --source-only
+  set -e               # restore errexit — reconftw.sh does global set +e
+  export MIN_DISK_SPACE_GB=0  # disable disk-space guard in tests
+  ```
+  Without `set -e`, assertion failures inside test bodies are silently swallowed.
+- **Re-export `CACHE_DIR` after sourcing** — `modules/utils.sh` unconditionally sets `CACHE_DIR="${SCRIPTPATH}/.cache"` at module load time, overwriting any value set before sourcing. Tests that need a custom cache directory must re-export it after the `source` call.
+- **`declare -gA` in test bodies for associative arrays** — `declare -A` inside a bats `setup()` function creates a *local* array that vanishes when setup returns. Use `declare -gA VAR=()` inside the test body itself (or at module scope in production code) to ensure the array survives into the test.
+- **`$BASHPID` not `$$` for unique per-process IDs** — `$$` is the same in all subshells (it's the top-level shell PID). `$BASHPID` is unique per process and must be used when generating directory names or tokens that must not collide across concurrent subshells.
+- **`anew` mock pattern** — tests that exercise functions which pipe output through `anew` must mock it. Standard mock:
+  ```bash
+  cat > "$MOCK_BIN/anew" <<'SH'
+  #!/usr/bin/env bash
+  quiet=false
+  if [[ "${1:-}" == "-q" ]]; then quiet=true; shift; fi
+  outfile="$1"; mkdir -p "$(dirname "$outfile")"; touch "$outfile"
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    if ! grep -Fxq -- "$line" "$outfile"; then
+      printf '%s\n' "$line" >> "$outfile"
+      [[ "$quiet" != true ]] && printf '%s\n' "$line"
+    fi
+  done
+  SH
+  chmod +x "$MOCK_BIN/anew"
+  ```
+- **`run_with_heartbeat_shell` resets PATH in tests** — `lib/common.sh:run_with_heartbeat_shell` calls `/bin/bash -lc`, which sources login profiles and resets `PATH`, losing any `MOCK_BIN` prepended by the test. Override it inside the test body: `run_with_heartbeat_shell() { bash -c "$2"; }`.
+- **Don't pre-seed files that functions wipe on entry** — some functions (e.g. `swagger_check`) start with `: >.tmp/somefile` to clear state. Pre-populating that file in the test is ineffective. Instead supply input through whichever source the function reads in its Phase 2 (e.g. `nuclei_output/info_json.txt`).
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
@@ -417,6 +447,12 @@ Recon/<domain>/
 ### Writing checkpoint files manually
 ### Skipping the `[[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]` guard
 ### Overriding config globals without save/restore in workflow functions
+### `if ! cmd; then rc=$?` to capture a command's exit code
+- Under `reconftw.sh`'s global `set +e`, `$?` after `if ! cmd; then` is the exit status of the `!` expression — always `0` when `cmd` fails, never the original non-zero code. Use `cmd || rc=$?` instead.
+### `declare -A` at module scope for arrays that must be globally visible
+- `declare -A` inside a sourced file creates a local array scoped to the sourcing call. Use `declare -gA` so the array is placed in the global environment regardless of how or where the file is sourced.
+### Parsing space-delimited strings with `read` when ambient IFS may differ
+- `reconftw.sh` sets `IFS=$'\n\t'` globally. A bare `read -r a b c <<<"$space_string"` puts the entire string into `a`. Use `IFS=' ' read -r a b c <<<"$space_string"` to override IFS inline.
 ## Error Handling
 - ERR trap in `start()` logs function name, line number, and command to `$LOGFILE` and calls `explain_err()` (`modules/modes.sh:140`)
 - Non-zero exit from `parallel_funcs` increments `RECON_OSINT_PARALLEL_FAILURES` and sets `RECON_PARTIAL_RUN=true`
