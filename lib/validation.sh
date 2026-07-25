@@ -99,7 +99,7 @@ function validate_ipv4() {
 function validate_boolean() {
 	local value="$1"
 
-	if [[ "$value" =~ ^(true|false|1|0|yes|no)$ ]]; then
+	if [[ "$value" =~ ^(true|false)$ ]]; then
 		return 0
 	fi
 

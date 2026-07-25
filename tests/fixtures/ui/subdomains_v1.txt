@@ -1,5 +1,5 @@
 ────────────────────────────────────────────────────────────────────────────────
-reconftw test-v0 by @six2dez | Authorized testing only
+reconftw test-v0 by @FloyyMP | Authorized testing only
 ────────────────────────────────────────────────────────────────────────────────
 Mode: SUBDOMAINS | Target: example.com | Profile: default | Parallel: true | ...
 Output: /tmp/recon

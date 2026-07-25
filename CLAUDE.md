@@ -47,7 +47,7 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - shellcheck (error-level) — `make lint`, pre-commit hook
 - shfmt (4-space indent, `-bn`, `-ci`) — `make fmt`, pre-commit hook
 - pre-commit hooks defined in `.pre-commit-config.yaml`
-- semgrep: `.github/workflows/semgrep.yml` (CI only)
+- semgrep: run locally with `semgrep --config=auto` (no CI workflow configured)
 ## Key Dependencies
 ### Go Tools (installed via `go install @latest`)
 - `subfinder` (projectdiscovery/subfinder) — passive multi-source subdomain discovery

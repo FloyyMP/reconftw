@@ -199,11 +199,12 @@ setup() {
 
 ### CI Pipeline
 
-The GitHub Actions workflow (`.github/workflows/tests.yml`) runs on every push and pull request:
+No automated CI workflows are configured. Run tests locally before submitting a PR:
 
-1. **ShellCheck** — lints `reconftw.sh`, `modules/*.sh`, and `install.sh`
-2. **Unit Tests** — runs `bats tests/unit/*.bats`
-3. **Integration Tests** — installs reconFTW and runs tool checks
+```bash
+make lint    # shellcheck all .sh files
+make test    # bats unit tests
+```
 
 ## Pull Request Process
 

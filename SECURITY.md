@@ -58,7 +58,7 @@ docker run -it --rm \
   -e SHODAN_API_KEY="your-key" \
   -e COLLAB_SERVER="your-server" \
   -v "${PWD}/OutputFolder/:/reconftw/Recon/" \
-  FloyyMP/reconftw:main -d example.com -r
+  reconftw:latest -d example.com -r
 ```
 
 ## Files to Never Commit

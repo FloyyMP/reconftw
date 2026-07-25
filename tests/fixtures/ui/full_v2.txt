@@ -1,5 +1,5 @@
 ────────────────────────────────────────────────────────────────────────────────
-reconftw test-v0 by @six2dez | Authorized testing only
+reconftw test-v0 by @FloyyMP | Authorized testing only
 ────────────────────────────────────────────────────────────────────────────────
 Mode: FULL | Target: example.com | Profile: default | Parallel: true | Jobs: 4
 Output: /tmp/recon
