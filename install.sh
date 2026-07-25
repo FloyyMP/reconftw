@@ -1294,12 +1294,10 @@ function initial_setup() {
     # aborts on mismatch. If unset the previous upstream-trusting behaviour is
     # preserved for backwards compatibility.
 	    declare -A downloads=(
-	        ["notify_provider_config"]="https://gist.githubusercontent.com/six2dez/23a996bca189a11e88251367e6583053/raw ${HOME}/.config/notify/provider-config.yaml"
 	        ["getjswords"]="https://raw.githubusercontent.com/m4ll0k/Bug-Bounty-Toolz/master/getjswords.py ${tools}/getjswords.py"
 	        ["subdomains_huge"]="https://raw.githubusercontent.com/n0kovo/n0kovo_subdomains/main/n0kovo_subdomains_huge.txt ${subs_wordlist_big}"
 	        ["trusted_resolvers"]="https://gist.githubusercontent.com/FloyyMP/df7f37c41662622434fa8890e6c19ca2/raw/trusted_resolvers.txt ${resolvers_trusted}"
 	        ["resolvers"]="https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt ${resolvers}"
-	        ["axiom_config"]="https://gist.githubusercontent.com/six2dez/6e2d9f4932fd38d84610eb851014b26e/raw ${tools}/axiom_config.sh"
 	    )
 
     # Map of optional pinned checksums (env-var driven). Add more entries here
