@@ -471,3 +471,13 @@ Recon/<domain>/
 
 No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
 <!-- GSD:skills-end -->
+
+## Claude Code Git Workflow
+
+- **Commit after completing each discrete task** — once a logical unit of work is done (bug fixed, feature added, docs updated), create a commit. Don't batch unrelated changes into one commit.
+- **Push after committing** — push to `origin/main` immediately after each commit unless the user has indicated the work is still in progress or part of a larger sequence.
+- **Commit message format** — use conventional commits style: `fix:`, `feat:`, `docs:`, `refactor:`, `test:`, `chore:`. Keep the subject line under 72 characters; add a body when the why is non-obvious.
+- **Always include co-author trailer**:
+  ```
+  Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+  ```
