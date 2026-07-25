@@ -86,7 +86,7 @@ reconFTW sanitizes all user-supplied input to prevent command injection:
 | `validate_domain()` | Validates domain format without modification |
 | `validate_ipv4()` | Validates IPv4 address format |
 
-All `eval` usage on user input has been removed. Variables are quoted throughout the codebase to prevent word-splitting and globbing attacks.
+`eval` on raw user input has been removed. `eval set --` on getopt-normalized output remains in `reconftw.sh` by design (standard getopt pattern). Variables are quoted throughout the codebase to prevent word-splitting and globbing attacks.
 
 ## Security Testing
 

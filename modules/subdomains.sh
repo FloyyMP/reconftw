@@ -513,7 +513,7 @@ function sub_passive() {
 
         # Run subfinder and check for errors
         run_command subfinder -all -d "$domain" -max-time "$SUBFINDER_ENUM_TIMEOUT" -silent -o .tmp/subfinder_psub.txt 2>>"$LOGFILE" >/dev/null
-        run_command curl -s https://ip.thc.org/sb/$domain | grep -v ";;" | anew -q .tmp/subfinder_psub.txt 2>>"$LOGFILE" >/dev/null
+        run_command curl -s "https://ip.thc.org/sb/${domain}" | grep -v ";;" | anew -q .tmp/subfinder_psub.txt 2>>"$LOGFILE" >/dev/null
 
         # Run github-subdomains if GITHUB_TOKENS is set and file is not empty
         if [[ -s $GITHUB_TOKENS ]]; then
@@ -2139,7 +2139,8 @@ function zonetransfer() {
         fi
 
         # Perform zone transfer check
-        for ns in $(run_command dig +short ns "$domain" 2>/dev/null); do
+        mapfile -t _ns_list < <(run_command dig +short ns "$domain" 2>/dev/null)
+        for ns in "${_ns_list[@]}"; do
             run_command dig axfr "${domain}" @"$ns" 2>>"$LOGFILE" | tee -a "subdomains/zonetransfer.txt" >/dev/null
         done
 
