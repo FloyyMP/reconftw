@@ -1195,7 +1195,7 @@ function cors_checks() {
                 --headers "Origin: https://evil.com" -q -o ".tmp/cors_raw.json" \
                 2>>"$LOGFILE" >/dev/null || true
             if [[ -s ".tmp/cors_raw.json" ]]; then
-                jq -r 'to_entries[] | "\(.key): \(.value.class) [\(.value.Corsy_origin)]"' \
+                jq -r 'to_entries[] | "\(.key): \(.value.class) [\(.value.origin)]"' \
                     .tmp/cors_raw.json 2>/dev/null | anew -q "vulns/cors.txt" || true
             fi
         else
