@@ -658,7 +658,7 @@ function osint() {
     if [[ "${PARALLEL_MODE:-false}" != "false" ]]; then
         # Group 1: Independent lookups (no shared state)
         parallel_funcs "${PAR_OSINT_GROUP1_SIZE:-4}" \
-            domain_info ip_info emails google_dorks github_dorks
+            domain_info ip_info emails google_dorks github_dorks uncover_assets
         # Group 2: GitHub/API analysis
         parallel_funcs "${PAR_OSINT_GROUP2_SIZE:-3}" \
             github_repos github_leaks github_actions_audit
@@ -684,6 +684,7 @@ function osint() {
         mail_hygiene
         spoof
         cloud_enum_scan
+        uncover_assets
     fi
 }
 
@@ -761,7 +762,7 @@ function vulns() {
                     return 1
                 fi
             fi
-            parallel_funcs "${PAR_VULNS_GROUP4_SIZE:-3}" webcache spraying brokenLinks fray_checks
+            parallel_funcs "${PAR_VULNS_GROUP4_SIZE:-3}" webcache spraying brokenLinks fray_checks cors_checks open_redirect
             local vulns_g4_rc=$?
             if ((vulns_g4_rc > 0)); then
                 if [[ "${CONTINUE_ON_TOOL_ERROR:-true}" == "true" ]]; then
@@ -776,6 +777,7 @@ function vulns() {
             nuclei_dast
             4xxbypass
             test_ssl
+            jwt_checks
         else
             crlf_checks
             run_module_with_axiom_failover xss
@@ -789,10 +791,13 @@ function vulns() {
             spraying
             run_module_with_axiom_failover brokenLinks
             fray_checks
+            cors_checks
+            open_redirect
             run_module_with_axiom_failover fuzzparams
             run_module_with_axiom_failover nuclei_dast
             4xxbypass
             test_ssl
+            jwt_checks
         fi
     else
         _print_msg WARN "Vulnerability module disabled (VULNS_GENERAL=false). Use -a flag or set VULNS_GENERAL=true in config."
@@ -990,10 +995,13 @@ function recon() {
         run_module_with_axiom_failover nuclei_check
         run_module_with_axiom_failover graphql_scan
         run_module_with_axiom_failover fuzz
+        run_module_with_axiom_failover ferox_fuzz
         run_module_with_axiom_failover iishortname
         swagger_check
         run_module_with_axiom_failover urlchecks
+        run_module_with_axiom_failover cariddi_crawl
         run_module_with_axiom_failover jschecks
+        social_hunter
         sub_js_extract
         well_known_pivots
 
@@ -1395,12 +1403,15 @@ function webs_menu() {
     run_module_with_axiom_failover nuclei_check
     run_module_with_axiom_failover graphql_scan
     run_module_with_axiom_failover fuzz
+    run_module_with_axiom_failover ferox_fuzz
     cms_scanner
     run_module_with_axiom_failover iishortname
     swagger_check
     run_module_with_axiom_failover urlchecks
+    run_module_with_axiom_failover cariddi_crawl
     param_discovery
     run_module_with_axiom_failover jschecks
+    social_hunter
     sub_js_extract
     well_known_pivots
     websocket_checks

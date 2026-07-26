@@ -1895,6 +1895,14 @@ function urlchecks() {
                         cat .tmp/github-endpoints.txt | anew -q .tmp/url_extract_tmp.txt || true
                     fi
                 fi
+                if command -v gau &>/dev/null && [[ $GAU == true ]]; then
+                    if ! run_command gau --threads "$GAU_THREADS" --o .tmp/gau_urls.txt "$domain" 2>>"$LOGFILE" >/dev/null; then
+                        log_note "urlchecks: gau failed; continuing" "${FUNCNAME[0]}" "${LINENO}"
+                    fi
+                    if [[ -s ".tmp/gau_urls.txt" ]]; then
+                        cat .tmp/gau_urls.txt | anew -q .tmp/url_extract_tmp.txt || true
+                    fi
+                fi
             fi
 
             if [[ $AXIOM != true ]]; then
@@ -2948,6 +2956,129 @@ function brokenLinks() {
             skip_notification "disabled"
         elif [[ $domain =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             return
+        else
+            skip_notification "processed"
+        fi
+    fi
+
+}
+
+function social_hunter() {
+
+    if ! ensure_dirs .tmp vulns; then return 1; fi
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } && [[ $SOCIALHUNTER == true ]] \
+        && [[ -s "webs/webs_all.txt" ]] \
+        && ! [[ $domain =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+
+        start_func "${FUNCNAME[0]}" "Broken Social Media Link Detection"
+
+        if command -v socialhunter &>/dev/null; then
+            run_command socialhunter -f "webs/webs_all.txt" -w "$SOCIALHUNTER_THREADS" \
+                2>>"$LOGFILE" | anew -q "vulns/social_hijack.txt" || true
+        else
+            _print_msg WARN "${FUNCNAME[0]}: socialhunter not found; skipping"
+        fi
+
+        if [[ -s "vulns/social_hijack.txt" ]]; then
+            NUMOFLINES=$(wc -l < "vulns/social_hijack.txt" | tr -d ' ')
+            notification "${NUMOFLINES} broken social media links found (potential hijack)" info
+        fi
+
+        end_func "Results are saved in vulns/social_hijack.txt" "${FUNCNAME[0]}"
+    else
+        if [[ $SOCIALHUNTER == false ]]; then
+            skip_notification "disabled"
+        elif [[ ! -s "webs/webs_all.txt" ]]; then
+            skip_notification "noinput"
+        else
+            skip_notification "processed"
+        fi
+    fi
+
+}
+
+function cariddi_crawl() {
+
+    if ! ensure_dirs .tmp webs js; then return 1; fi
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } && [[ $CARIDDI == true ]] \
+        && [[ -s "webs/webs_all.txt" ]]; then
+
+        start_func "${FUNCNAME[0]}" "Secrets-aware Web Crawling with Cariddi"
+
+        if ! command -v cariddi &>/dev/null; then
+            _print_msg WARN "${FUNCNAME[0]}: cariddi not found; skipping"
+            end_func "cariddi not installed" "${FUNCNAME[0]}"
+            return 0
+        fi
+
+        local cariddi_extra=""
+        [[ $CARIDDI_INTENSIVE == true ]] && cariddi_extra="-intensive"
+
+        run_command cariddi -l "webs/webs_all.txt" -e -ef "webs/cariddi_endpoints.txt" \
+            -s -sf "js/cariddi_secrets.txt" -c "$CARIDDI_THREADS" $cariddi_extra \
+            2>>"$LOGFILE" >/dev/null || true
+
+        # Feed newly discovered endpoints back into the URL pool
+        if [[ -s "webs/cariddi_endpoints.txt" ]]; then
+            cat "webs/cariddi_endpoints.txt" | anew -q "webs/webs_all.txt" || true
+        fi
+
+        local numlines=0
+        [[ -s "webs/cariddi_endpoints.txt" ]] && numlines=$(wc -l < "webs/cariddi_endpoints.txt" | tr -d ' ')
+
+        end_func "${numlines} endpoints in webs/cariddi_endpoints.txt; secrets in js/cariddi_secrets.txt" "${FUNCNAME[0]}"
+    else
+        if [[ $CARIDDI == false ]]; then
+            skip_notification "disabled"
+        elif [[ ! -s "webs/webs_all.txt" ]]; then
+            skip_notification "noinput"
+        else
+            skip_notification "processed"
+        fi
+    fi
+
+}
+
+function ferox_fuzz() {
+
+    if ! ensure_dirs .tmp webs; then return 1; fi
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } && [[ $FEROX == true ]] \
+        && [[ -s "webs/webs_all.txt" ]]; then
+
+        start_func "${FUNCNAME[0]}" "Recursive Directory Brute Force with feroxbuster"
+
+        if ! command -v feroxbuster &>/dev/null; then
+            _print_msg WARN "${FUNCNAME[0]}: feroxbuster not found; skipping"
+            end_func "feroxbuster not installed" "${FUNCNAME[0]}"
+            return 0
+        fi
+
+        ensure_webs_all || true
+
+        run_command feroxbuster --stdin \
+            --wordlist "$fuzz_wordlist" \
+            --threads "$FEROX_THREADS" \
+            --depth "$FEROX_DEPTH" \
+            --silent \
+            --output ".tmp/ferox_raw.txt" \
+            < "webs/webs_all.txt" 2>>"$LOGFILE" >/dev/null || true
+
+        if [[ -s ".tmp/ferox_raw.txt" ]]; then
+            grep -E "^[0-9]+" .tmp/ferox_raw.txt | anew -q "webs/ferox_content.txt" || true
+        fi
+
+        local numlines=0
+        [[ -s "webs/ferox_content.txt" ]] && numlines=$(wc -l < "webs/ferox_content.txt" | tr -d ' ')
+
+        end_func "${numlines} paths in webs/ferox_content.txt" "${FUNCNAME[0]}"
+    else
+        if [[ $FEROX == false ]]; then
+            skip_notification "disabled"
+        elif [[ ! -s "webs/webs_all.txt" ]]; then
+            skip_notification "noinput"
         else
             skip_notification "processed"
         fi

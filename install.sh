@@ -184,6 +184,7 @@ install_rust_uv() {
     # shellcheck source=/dev/null
     source "${HOME}/.cargo/env" 2>/dev/null || true
     cargo install smugglex &>/dev/null
+    cargo install feroxbuster &>/dev/null
 
     # Install uv via downloaded script (verify before executing)
     _tmpfile=$(mktemp "${TMPDIR:-/tmp}/uv_install.XXXXXX")
@@ -378,6 +379,12 @@ declare -A gotools=(
     ["brutus"]="github.com/praetorian-inc/brutus/cmd/brutus"
     ["julius"]="github.com/praetorian-inc/julius/cmd/julius"
     ["titus"]="github.com/praetorian-inc/titus/cmd/titus"
+    ["amass"]="github.com/owasp-amass/amass/v4/cmd/amass"
+    ["uncover"]="github.com/projectdiscovery/uncover/cmd/uncover"
+    ["gau"]="github.com/lc/gau/v2/cmd/gau"
+    ["alterx"]="github.com/projectdiscovery/alterx/cmd/alterx"
+    ["socialhunter"]="github.com/utkusen/socialhunter"
+    ["cariddi"]="github.com/edoardottt/cariddi/cmd/cariddi"
 )
 
 # Declare uv tool-managed Python tools and their GitHub paths
@@ -399,6 +406,8 @@ declare -A pipxtools=(
     ["postleaksNg"]="six2dez/postleaksNG"
     ["cewler"]="roys/cewler"
     ["fray"]="dalisecurity/fray"
+    ["corsy"]="s0md3v/Corsy"
+    ["jwt_tool"]="ticarpi/jwt_tool"
 )
 
 # Declare repositories and their paths
@@ -1096,6 +1105,7 @@ function install_brew() {
     brew install rustup &>/dev/null
     rustup-init -y &>/dev/null
     cargo install smugglex &>/dev/null
+    cargo install feroxbuster &>/dev/null
     uv tool update-shell &>/dev/null || true
     # Install shodan CLI via uv
     uv tool install shodan --force &>/dev/null || uv tool upgrade shodan &>/dev/null || true

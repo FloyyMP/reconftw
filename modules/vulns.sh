@@ -1179,3 +1179,138 @@ function fray_checks() {
         fi
     fi
 }
+
+function cors_checks() {
+
+    if ! ensure_dirs .tmp webs vulns; then return 1; fi
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } && [[ $CORS_CHECKS == true ]] \
+        && [[ -s "webs/webs_all.txt" ]] \
+        && ! [[ $domain =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+
+        start_func "${FUNCNAME[0]}" "CORS Misconfiguration Checks"
+
+        if command -v corsy &>/dev/null; then
+            run_command corsy -i "webs/webs_all.txt" -t "$CORSY_THREADS" \
+                --headers "Origin: https://evil.com" -q -o ".tmp/cors_raw.json" \
+                2>>"$LOGFILE" >/dev/null || true
+            if [[ -s ".tmp/cors_raw.json" ]]; then
+                jq -r 'to_entries[] | "\(.key): \(.value.class) [\(.value.Corsy_origin)]"' \
+                    .tmp/cors_raw.json 2>/dev/null | anew -q "vulns/cors.txt" || true
+            fi
+        else
+            _print_msg WARN "${FUNCNAME[0]}: corsy not found; skipping CORS checks"
+        fi
+
+        if [[ -s "vulns/cors.txt" ]]; then
+            NUMOFLINES=$(wc -l < "vulns/cors.txt" | tr -d ' ')
+            notification "${NUMOFLINES} potential CORS misconfigurations found" info
+        fi
+
+        end_func "Results are saved in vulns/cors.txt" "${FUNCNAME[0]}"
+    else
+        if [[ $CORS_CHECKS == false ]]; then
+            skip_notification "disabled"
+        elif [[ ! -s "webs/webs_all.txt" ]]; then
+            skip_notification "noinput"
+        else
+            skip_notification "processed"
+        fi
+    fi
+
+}
+
+function jwt_checks() {
+
+    if ! ensure_dirs .tmp vulns; then return 1; fi
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } && [[ $JWT_CHECKS == true ]]; then
+
+        start_func "${FUNCNAME[0]}" "JWT Vulnerability Analysis"
+
+        if ! command -v jwt_tool &>/dev/null; then
+            _print_msg WARN "${FUNCNAME[0]}: jwt_tool not found; skipping JWT checks"
+            end_func "jwt_tool not installed" "${FUNCNAME[0]}"
+            return 0
+        fi
+
+        : >.tmp/jwt_tokens.txt
+        if [[ -d "js/" ]]; then
+            grep -rhoE 'eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*' js/ 2>/dev/null \
+                | sort -u | anew -q .tmp/jwt_tokens.txt || true
+        fi
+
+        if [[ ! -s ".tmp/jwt_tokens.txt" ]]; then
+            end_func "No JWT tokens found to analyze" "${FUNCNAME[0]}"
+            return 0
+        fi
+
+        local token_count
+        token_count=$(wc -l < .tmp/jwt_tokens.txt | tr -d ' ')
+        _print_msg INFO "Analyzing ${token_count} JWT tokens"
+
+        : >.tmp/jwt_results.txt
+        while IFS= read -r token; do
+            [[ -z "$token" ]] && continue
+            run_command jwt_tool "$token" -M at 2>>"$LOGFILE" >>.tmp/jwt_results.txt || true
+        done < .tmp/jwt_tokens.txt
+
+        if [[ -s ".tmp/jwt_results.txt" ]]; then
+            grep -iE "VULNERABLE|EXPLOIT|alg:none|weak|found" .tmp/jwt_results.txt \
+                | anew -q "vulns/jwt_findings.txt" || true
+        fi
+
+        if [[ -s "vulns/jwt_findings.txt" ]]; then
+            NUMOFLINES=$(wc -l < "vulns/jwt_findings.txt" | tr -d ' ')
+            notification "${NUMOFLINES} JWT vulnerabilities found" info
+        fi
+
+        end_func "Results are saved in vulns/jwt_findings.txt" "${FUNCNAME[0]}"
+    else
+        if [[ $JWT_CHECKS == false ]]; then
+            skip_notification "disabled"
+        else
+            skip_notification "processed"
+        fi
+    fi
+
+}
+
+function open_redirect() {
+
+    if ! ensure_dirs .tmp vulns; then return 1; fi
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } && [[ $OPENREDIRECT == true ]] \
+        && [[ -s "gf/redirect.txt" ]] \
+        && ! [[ $domain =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+
+        start_func "${FUNCNAME[0]}" "Open Redirect Checks"
+
+        : >.tmp/redirect_payloads.txt
+        run_command qsreplace "https://evil.com" < "gf/redirect.txt" | anew -q ".tmp/redirect_payloads.txt"
+        run_command qsreplace "//evil.com" < "gf/redirect.txt" | anew -q ".tmp/redirect_payloads.txt"
+
+        if [[ -s ".tmp/redirect_payloads.txt" ]]; then
+            run_command httpx -l ".tmp/redirect_payloads.txt" -silent \
+                -follow-redirects -max-redirects 5 \
+                -match-string "evil.com" -H "${HEADER}" \
+                2>>"$LOGFILE" | anew -q "vulns/open_redirects.txt" || true
+        fi
+
+        if [[ -s "vulns/open_redirects.txt" ]]; then
+            NUMOFLINES=$(wc -l < "vulns/open_redirects.txt" | tr -d ' ')
+            notification "${NUMOFLINES} open redirects found" info
+        fi
+
+        end_func "Results are saved in vulns/open_redirects.txt" "${FUNCNAME[0]}"
+    else
+        if [[ $OPENREDIRECT == false ]]; then
+            skip_notification "disabled"
+        elif [[ ! -s "gf/redirect.txt" ]]; then
+            skip_notification "noinput"
+        else
+            skip_notification "processed"
+        fi
+    fi
+
+}

@@ -783,3 +783,31 @@ function ip_info() {
     fi
 
 }
+
+function uncover_assets() {
+    ensure_dirs osint
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } && [[ $UNCOVER == true ]] && [[ $OSINT == true ]]; then
+        start_func "${FUNCNAME[0]}" "Multi-engine Internet Asset Discovery"
+
+        local uncover_engines="${UNCOVER_ENGINES:-shodan,censys,fofa,hunter,zoomeye}"
+
+        if ! run_command uncover -q "$domain" -e "$uncover_engines" -silent \
+            2>>"$LOGFILE" | anew -q "osint/uncover_hosts.txt"; then
+            _print_error "uncover command failed"
+        fi
+
+        if [[ -s "osint/uncover_hosts.txt" ]]; then
+            NUMOFLINES=$(wc -l < "osint/uncover_hosts.txt" | tr -d ' ')
+            notification "${NUMOFLINES} hosts discovered via uncover" info
+        fi
+
+        end_func "Results are saved in osint/uncover_hosts.txt" "${FUNCNAME[0]}"
+    else
+        if [[ $UNCOVER == false ]] || [[ $OSINT == false ]]; then
+            skip_notification "disabled"
+        else
+            skip_notification "processed"
+        fi
+    fi
+}

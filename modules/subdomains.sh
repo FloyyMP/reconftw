@@ -529,6 +529,11 @@ function sub_passive() {
             run_command gitlab-subdomains -d "$domain" -t "$GITLAB_TOKENS" 2>>"$LOGFILE" | tee .tmp/gitlab_subdomains_psub.txt >/dev/null
         fi
 
+        if command -v amass &>/dev/null && [[ $AMASS == true ]]; then
+            run_command amass enum -passive -d "$domain" -timeout "$AMASS_TIMEOUT" \
+                -silent -o .tmp/amass_psub.txt 2>>"$LOGFILE" >/dev/null || true
+        fi
+
         # Check if INSCOPE is true and run check_inscope
         if [[ $INSCOPE == true ]]; then
             check_inscope .tmp/subfinder_psub.txt 2>>"$LOGFILE" >/dev/null
@@ -1547,6 +1552,10 @@ function sub_permut() {
         if [[ $DEEP == true ]] || [[ $subdomain_count -le $DEEP_LIMIT ]]; then
 
             _generate_permutation_candidates "subdomains/subdomains.txt" ".tmp/gotator1.txt"
+            if command -v alterx &>/dev/null && [[ $SUBALTERX == true ]] && [[ -s "subdomains/subdomains.txt" ]]; then
+                run_command alterx -l subdomains/subdomains.txt -silent 2>>"$LOGFILE" \
+                    | anew -q ".tmp/gotator1.txt" || true
+            fi
 
         elif [[ "$subs_no_resolved_count" -le $DEEP_LIMIT2 ]]; then
 
