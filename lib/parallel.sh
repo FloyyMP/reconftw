@@ -192,7 +192,7 @@ _parallel_snapshot() {
         progress_pct=0
     fi
 
-    if [[ "${PARALLEL_PROGRESS_SHOW_ETA:-true}" == "true" ]] && ((done_count >= 2)) && ((total_count > done_count)) && ((elapsed_batch >= 60)); then
+    if [[ "${PARALLEL_PROGRESS_SHOW_ETA:-true}" == "true" ]] && ((done_count >= 1)) && ((total_count > done_count)) && ((elapsed_batch >= 10)); then
         local avg remaining eta_seconds
         avg=$((elapsed_batch / done_count))
         remaining=$((total_count - done_count))

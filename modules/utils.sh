@@ -1455,24 +1455,37 @@ _ensure_dns_resolver_files() {
 }
 
 # Execute DNS command with heartbeat and optional hard-timeout.
-# Usage: _run_dns_with_heartbeat <label> <timeout_value> <command...>
+# Usage: _run_dns_with_heartbeat <label> <timeout_value> [--total-queries N] [--rate-per-sec R] <command...>
 _run_dns_with_heartbeat() {
     local label="$1"
     local timeout_value="$2"
     shift 2
 
+    local total_queries=0 rate_per_sec=0
+    while [[ "${1:-}" == --* ]]; do
+        case "$1" in
+            --total-queries) total_queries="${2:-0}"; shift 2 ;;
+            --rate-per-sec)  rate_per_sec="${2:-0}";  shift 2 ;;
+            *) break ;;
+        esac
+    done
+
     local heartbeat_interval="${DNS_HEARTBEAT_INTERVAL_SECONDS:-20}"
     [[ "$heartbeat_interval" =~ ^[0-9]+$ ]] || heartbeat_interval=20
 
+    local extra=()
+    ((total_queries > 0)) && extra+=(--total-queries "$total_queries")
+    ((rate_per_sec  > 0)) && extra+=(--rate-per-sec  "$rate_per_sec")
+
     if _dns_timeout_enabled "$timeout_value"; then
         if [[ -n "${TIMEOUT_CMD:-}" ]]; then
-            run_with_heartbeat "$label" "$heartbeat_interval" "$TIMEOUT_CMD" -k 10s "$timeout_value" "$@"
+            run_with_heartbeat "$label" "${extra[@]}" "$heartbeat_interval" "$TIMEOUT_CMD" -k 10s "$timeout_value" "$@"
         else
             warn_once "dns-timeout-command-missing" "DNS timeout requested but timeout command is unavailable; continuing without hard timeout."
-            run_with_heartbeat "$label" "$heartbeat_interval" "$@"
+            run_with_heartbeat "$label" "${extra[@]}" "$heartbeat_interval" "$@"
         fi
     else
-        run_with_heartbeat "$label" "$heartbeat_interval" "$@"
+        run_with_heartbeat "$label" "${extra[@]}" "$heartbeat_interval" "$@"
     fi
 }
 
@@ -1487,9 +1500,14 @@ _resolve_domains() {
 
     _ensure_dns_resolver_files "$resolver" || return 1
 
+    local total_queries=0
+    [[ -f "$input_file" ]] && total_queries=$(wc -l < "$input_file" 2>/dev/null | tr -d ' ')
+    [[ "$total_queries" =~ ^[0-9]+$ ]] || total_queries=0
+
     if [[ "$resolver" == "dnsx" ]]; then
         local raw_output_file="${output_file}.dnsx.raw"
         if ! _run_dns_with_heartbeat "dns resolve (${resolver})" "${DNS_RESOLVE_TIMEOUT:-0}" \
+            --total-queries "$total_queries" --rate-per-sec "${DNSX_RATE_LIMIT:-500}" \
             dnsx -l "$input_file" -silent -retry 2 \
             -t "${DNSX_THREADS:-25}" -rl "${DNSX_RATE_LIMIT:-100}" \
             -r "$resolvers_trusted" -wt 5 -o "$raw_output_file"; then
@@ -1504,6 +1522,7 @@ _resolve_domains() {
         rm -f "$raw_output_file" 2>/dev/null || true
     else
         _run_dns_with_heartbeat "dns resolve (${resolver})" "${DNS_RESOLVE_TIMEOUT:-0}" \
+            --total-queries "$total_queries" --rate-per-sec "${PUREDNS_PUBLIC_LIMIT:-5000}" \
             puredns resolve "$input_file" -w "$output_file" \
             -r "$resolvers" --resolvers-trusted "$resolvers_trusted" \
             -l "$PUREDNS_PUBLIC_LIMIT" --rate-limit-trusted "$PUREDNS_TRUSTED_LIMIT" \
@@ -1531,9 +1550,14 @@ _bruteforce_domains() {
 
     _ensure_dns_resolver_files "$resolver" || return 1
 
+    local total_queries=0
+    [[ -f "$wordlist" ]] && total_queries=$(wc -l < "$wordlist" 2>/dev/null | tr -d ' ')
+    [[ "$total_queries" =~ ^[0-9]+$ ]] || total_queries=0
+
     if [[ "$resolver" == "dnsx" ]]; then
         local raw_output_file="${output_file}.dnsx.raw"
         if ! _run_dns_with_heartbeat "dns bruteforce (${resolver})" "${DNS_BRUTE_TIMEOUT:-0}" \
+            --total-queries "$total_queries" --rate-per-sec "${DNSX_RATE_LIMIT:-500}" \
             dnsx -d "$target_domain" -w "$wordlist" -silent -retry 2 \
             -t "${DNSX_THREADS:-25}" -rl "${DNSX_RATE_LIMIT:-100}" \
             -r "$resolvers_trusted" -wt 5 -o "$raw_output_file"; then
@@ -1548,6 +1572,7 @@ _bruteforce_domains() {
         rm -f "$raw_output_file" 2>/dev/null || true
     else
         _run_dns_with_heartbeat "dns bruteforce (${resolver})" "${DNS_BRUTE_TIMEOUT:-0}" \
+            --total-queries "$total_queries" --rate-per-sec "${PUREDNS_PUBLIC_LIMIT:-5000}" \
             puredns bruteforce "$wordlist" "$target_domain" \
             -w "$output_file" -r "$resolvers" --resolvers-trusted "$resolvers_trusted" \
             -l "$PUREDNS_PUBLIC_LIMIT" --rate-limit-trusted "$PUREDNS_TRUSTED_LIMIT" \

@@ -663,11 +663,24 @@ strip_ansi_stream() {
 }
 
 # Run a command with periodic heartbeat status lines for long-running tasks.
-# Usage: run_with_heartbeat "label" [interval_seconds] command [args...]
+# Usage: run_with_heartbeat "label" [--total-queries N] [--rate-per-sec R] [interval_seconds] command [args...]
+# --total-queries N and --rate-per-sec R enable a rate-based ETA countdown.
 run_with_heartbeat() {
     local label="${1:-task}"
     shift
     local interval="${HEARTBEAT_INTERVAL_SECONDS:-20}"
+    local total_queries=0
+    local rate_per_sec=0
+
+    # Parse optional named flags before the interval / command
+    while [[ "${1:-}" == --* ]]; do
+        case "$1" in
+            --total-queries) total_queries="${2:-0}"; shift 2 ;;
+            --rate-per-sec)  rate_per_sec="${2:-0}";  shift 2 ;;
+            *) break ;;
+        esac
+    done
+
     if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
         interval="$1"
         shift
@@ -695,12 +708,28 @@ run_with_heartbeat() {
     run_command "$@" >>"$hb_log" 2>&1 &
     local cmd_pid=$!
 
+    # Inline rate-based ETA: given elapsed seconds, return formatted string.
+    # Returns "--" when total_queries or rate_per_sec are not set.
+    _hb_eta_str() {
+        local el="$1" tq="$2" rps="$3"
+        if ((tq > 0 && rps > 0)); then
+            local done_q=$(( rps * el ))
+            if ((done_q < tq)); then
+                format_duration "$(( (tq - done_q) / rps ))"
+            else
+                printf "~0s"
+            fi
+        else
+            printf -- "--"
+        fi
+    }
+
     if [[ "${OUTPUT_VERBOSITY:-1}" -ge 1 ]] && _ui_human_output_enabled; then
         if declare -F ui_is_tty >/dev/null 2>&1 && ui_is_tty && declare -F ui_live_progress_begin >/dev/null 2>&1; then
             use_live=true
             ui_live_progress_begin
             if declare -F ui_live_progress_update >/dev/null 2>&1; then
-                ui_live_progress_update "Running: ${label} | elapsed 0s | ETA: --"
+                ui_live_progress_update "Running: ${label} | elapsed 0s | ETA: $(_hb_eta_str 0 "$total_queries" "$rate_per_sec")"
             fi
         else
             printf "Started: %s\n" "$label"
@@ -713,11 +742,13 @@ run_with_heartbeat() {
         if ((now_ts - last_hb >= interval)); then
             elapsed=$((now_ts - start_ts))
             if [[ "${OUTPUT_VERBOSITY:-1}" -ge 1 ]] && [[ "$use_live" == true ]] && declare -F ui_live_progress_update >/dev/null 2>&1; then
-                ui_live_progress_update "Running: ${label} | elapsed $(format_duration "$elapsed") | ETA: --"
+                ui_live_progress_update "Running: ${label} | elapsed $(format_duration "$elapsed") | ETA: $(_hb_eta_str "$elapsed" "$total_queries" "$rate_per_sec")"
             fi
             last_hb="$now_ts"
         fi
     done
+
+    unset -f _hb_eta_str 2>/dev/null || true
 
     wait "$cmd_pid"
     local rc=$?
