@@ -23,6 +23,9 @@ _UI_DRYRUN_COMMANDS=()
 _UI_DRYRUN_FULL_COMMANDS=()
 _UI_DRYRUN_SHARED_FILE=""
 _UI_LIVE_ACTIVE=false
+# When true, cursor is one line below the status slot; update must do \033[1A before writing.
+# When false, cursor is already on the status slot (fresh line after break+static output).
+_UI_LIVE_NEEDS_UP=false
 
 ui_init() {
     # TTY detection
@@ -54,6 +57,9 @@ ui_init() {
     else
         _UI_JSONL_STRICT=false
     fi
+
+    # Invalidate cached terminal width on resize so the progress line never wraps
+    trap '_UI_CACHED_WIDTH=""' WINCH
 }
 
 ui_is_tty() {
@@ -108,10 +114,28 @@ ui_truncate_text() {
     printf "%s..." "${text:0:max-3}"
 }
 
+# Live-progress display: each status frame ends with \n so the scrollback buffer records
+# clean lines rather than raw escape codes.  We track whether the cursor needs to go up
+# one line (\033[1A) to reach the status slot before overwriting it.
+#
+# State transitions:
+#   begin  → print \n (creates slot), _UI_LIVE_NEEDS_UP=true
+#   update → if NEEDS_UP: \033[1A\r\033[2K text \n   (go to slot, clear, write, back down)
+#             else:         \r\033[2K text \n          (cursor already on fresh slot line)
+#             always sets NEEDS_UP=true after write
+#   break  → erase slot (go up if NEEDS_UP), NEEDS_UP=false
+#             (static output then writes on the cleared line and ends with \n;
+#              the next update sees NEEDS_UP=false and treats that \n-fresh line as the new slot)
+#   end    → same erase as break, then mark inactive
+
 ui_live_progress_begin() {
     ui_human_output_enabled || return 0
     [[ "${OUTPUT_VERBOSITY:-1}" -lt 1 ]] && return 0
     ui_is_tty || return 0
+    if [[ "$_UI_LIVE_ACTIVE" != true ]]; then
+        printf "\n"
+        _UI_LIVE_NEEDS_UP=true
+    fi
     _UI_LIVE_ACTIVE=true
 }
 
@@ -122,9 +146,14 @@ ui_live_progress_update() {
     local line="$1"
     local width
     width=$(ui_term_width)
-    line=$(ui_truncate_text "$line" "$width")
+    line=$(ui_truncate_text "$line" "$((width - 2))")
     _UI_LIVE_ACTIVE=true
-    printf "\r  %b%s%b\033[K" "${bblue:-}" "$line" "${reset:-}"
+    if [[ "$_UI_LIVE_NEEDS_UP" == true ]]; then
+        printf "\033[1A\r\033[2K  %b%s%b\n" "${bblue:-}" "$line" "${reset:-}"
+    else
+        printf "\r\033[2K  %b%s%b\n" "${bblue:-}" "$line" "${reset:-}"
+        _UI_LIVE_NEEDS_UP=true
+    fi
 }
 
 ui_live_progress_break() {
@@ -132,7 +161,12 @@ ui_live_progress_break() {
     [[ "${OUTPUT_VERBOSITY:-1}" -lt 1 ]] && return 0
     ui_is_tty || return 0
     [[ "$_UI_LIVE_ACTIVE" == true ]] || return 0
-    printf "\r\033[K"
+    if [[ "$_UI_LIVE_NEEDS_UP" == true ]]; then
+        printf "\033[1A\r\033[2K"
+    else
+        printf "\r\033[2K"
+    fi
+    _UI_LIVE_NEEDS_UP=false
 }
 
 ui_live_progress_end() {
@@ -140,9 +174,14 @@ ui_live_progress_end() {
     [[ "${OUTPUT_VERBOSITY:-1}" -lt 1 ]] && return 0
     ui_is_tty || return 0
     if [[ "$_UI_LIVE_ACTIVE" == true ]]; then
-        printf "\r\033[K"
+        if [[ "$_UI_LIVE_NEEDS_UP" == true ]]; then
+            printf "\033[1A\r\033[2K"
+        else
+            printf "\r\033[2K"
+        fi
     fi
     _UI_LIVE_ACTIVE=false
+    _UI_LIVE_NEEDS_UP=false
 }
 
 ui_count_inc() {
