@@ -658,6 +658,7 @@ function sub_localdb() {
         escaped_domain=$(printf '%s' "$domain" | sed 's/\./\\./g')
 
         if ! NUMOFLINES=$(grep -iF ".${domain}" "${LOCAL_DOMAIN_DB}" 2>>"$LOGFILE" \
+            | tr -d '\r' \
             | grep -iE "(^|\.)${escaped_domain}$" \
             | sed '/^$/d' \
             | anew .tmp/localdb_subs.txt \
