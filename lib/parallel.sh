@@ -385,8 +385,12 @@ _parallel_batch_summary() {
     if [[ "${OUTPUT_VERBOSITY:-1}" -eq 0 ]] && [[ "$jsonl_enabled" != "true" ]]; then
         return 0
     fi
-    # Skip human batch envelope in summary mode at normal verbosity unless JSONL is enabled.
-    if [[ "${PARALLEL_LOG_MODE:-summary}" == "summary" ]] && [[ "${OUTPUT_VERBOSITY:-1}" -lt 2 ]] && [[ "$jsonl_enabled" != "true" ]]; then
+    # Skip human batch envelope in summary mode at normal verbosity on TTY — live progress
+    # and per-job badges are sufficient there. On non-TTY (log file, CI), show the envelope
+    # so log-watchers see batch boundaries.
+    local _batch_on_tty=false
+    declare -F ui_is_tty >/dev/null 2>&1 && ui_is_tty && _batch_on_tty=true
+    if [[ "${PARALLEL_LOG_MODE:-summary}" == "summary" ]] && [[ "${OUTPUT_VERBOSITY:-1}" -lt 2 ]] && [[ "$jsonl_enabled" != "true" ]] && [[ "$_batch_on_tty" == "true" ]]; then
         return 0
     fi
 
@@ -445,9 +449,11 @@ parallel_funcs() {
 
         if ((${#batch_pids[@]} == 0)); then
             if declare -F ui_batch_start >/dev/null 2>&1; then
-                # Skip batch envelope in summary mode at normal verbosity - individual status lines suffice
+                # Show batch envelope on TTY only in non-clean/verbose modes; always show on
+                # non-TTY (log file) so log-watchers see batch boundaries and job counts.
                 if { declare -F ui_is_jsonl >/dev/null 2>&1 && ui_is_jsonl; } \
-                    || { [[ "$(_parallel_get_ui_mode)" != "clean" ]] && { [[ "${PARALLEL_LOG_MODE:-summary}" != "summary" ]] || [[ "${OUTPUT_VERBOSITY:-1}" -ge 2 ]]; }; }; then
+                    || { [[ "$(_parallel_get_ui_mode)" != "clean" ]] && { [[ "${PARALLEL_LOG_MODE:-summary}" != "summary" ]] || [[ "${OUTPUT_VERBOSITY:-1}" -ge 2 ]]; }; } \
+                    || { [[ "${OUTPUT_VERBOSITY:-1}" -ge 1 ]] && declare -F ui_is_tty >/dev/null 2>&1 && ! ui_is_tty && declare -F _ui_human_output_enabled >/dev/null 2>&1 && _ui_human_output_enabled; }; then
                     ui_batch_start "$batch_label" "$max_jobs"
                 fi
             fi
@@ -469,6 +475,14 @@ parallel_funcs() {
         batch_logs+=("$log_file")
         batch_starts+=("$job_start_ts")
         queued_count=$((queued_count + 1))
+
+        # Non-TTY: emit a static RUN badge from the parent shell so log-watchers see
+        # each job as it starts. On TTY the heartbeat's live-progress line covers this.
+        if [[ "${OUTPUT_VERBOSITY:-1}" -ge 1 ]] && declare -F ui_is_tty >/dev/null 2>&1 && ! ui_is_tty; then
+            if declare -F _ui_human_output_enabled >/dev/null 2>&1 && _ui_human_output_enabled; then
+                print_task "RUN" "$func" "--"
+            fi
+        fi
 
         # Log if verbose (OUTPUT_VERBOSITY >= 2)
         if _parallel_should_show_started; then
