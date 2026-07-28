@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2154  # Variables defined in reconftw.cfg
 # reconFTW - Subdomain enumeration module
-# Contains: subdomains_full, sub_passive, sub_crt, sub_active, sub_tls,
+# Contains: subdomains_full, sub_passive, sub_crt, sub_localdb, sub_active, sub_tls,
 #           sub_noerror, sub_dns, sub_brute, sub_scraping, sub_analytics,
 #           sub_permut, sub_regex_permut, sub_ia_permut, sub_recursive_passive,
 #           sub_recursive_brute, subtakeover, zonetransfer, s3buckets,
@@ -241,7 +241,7 @@ _subdomains_enumerate() {
         sub_asn
         
         # Phase 1: Passive sources (all can run in parallel)
-        parallel_funcs "${PAR_SUB_PASSIVE_GROUP_SIZE:-4}" sub_passive sub_crt
+        parallel_funcs "${PAR_SUB_PASSIVE_GROUP_SIZE:-4}" sub_passive sub_crt sub_localdb
         local sub_g1_rc=$?
         if ((sub_g1_rc > 0)); then
             if [[ "${CONTINUE_ON_TOOL_ERROR:-true}" == "true" ]]; then
@@ -320,6 +320,7 @@ _subdomains_enumerate() {
         sub_asn
         sub_passive
         sub_crt
+        sub_localdb
         sub_active
         sub_tls
         sub_noerror
@@ -628,6 +629,45 @@ function sub_crt() {
         end_subfunc "${NUMOFLINES} new subs (cert transparency)" "${FUNCNAME[0]}"
     else
         if [[ $SUBCRT == false ]]; then
+            skip_notification "disabled"
+        else
+            skip_notification "processed"
+        fi
+    fi
+}
+
+function sub_localdb() {
+
+    ensure_dirs .tmp subdomains
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } && [[ $SUBLOCALDB == true ]]; then
+        start_subfunc "${FUNCNAME[0]}" "Running: Local Domain DB Lookup"
+
+        if [[ -z "${LOCAL_DOMAIN_DB:-}" ]]; then
+            _print_msg WARN "LOCAL_DOMAIN_DB not configured, skipping"
+            end_subfunc "0 new subs (local DB)" "${FUNCNAME[0]}" "WARN"
+            return
+        fi
+        if [[ ! -f "${LOCAL_DOMAIN_DB}" ]]; then
+            _print_msg WARN "LOCAL_DOMAIN_DB not found: ${LOCAL_DOMAIN_DB}, skipping"
+            end_subfunc "0 new subs (local DB)" "${FUNCNAME[0]}" "WARN"
+            return
+        fi
+
+        local escaped_domain
+        escaped_domain=$(printf '%s' "$domain" | sed 's/\./\\./g')
+
+        if ! NUMOFLINES=$(grep -iF ".${domain}" "${LOCAL_DOMAIN_DB}" 2>>"$LOGFILE" \
+            | grep -iE "(^|\.)${escaped_domain}$" \
+            | sed '/^$/d' \
+            | anew .tmp/localdb_subs.txt \
+            | wc -l); then
+            NUMOFLINES=0
+        fi
+
+        end_subfunc "${NUMOFLINES} new subs (local DB)" "${FUNCNAME[0]}"
+    else
+        if [[ $SUBLOCALDB == false ]]; then
             skip_notification "disabled"
         else
             skip_notification "processed"
