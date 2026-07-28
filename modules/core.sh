@@ -1448,6 +1448,13 @@ function start_func() {
     fi
     if [[ "${OUTPUT_VERBOSITY:-1}" -ge 2 ]]; then
         _print_msg "INFO" "Running ${1}..."
+    elif [[ "${OUTPUT_VERBOSITY:-1}" -ge 1 ]]; then
+        if declare -F ui_live_progress_begin >/dev/null 2>&1; then
+            ui_live_progress_begin
+        fi
+        if declare -F ui_live_progress_update >/dev/null 2>&1; then
+            ui_live_progress_update "Running: ${1}..."
+        fi
     fi
 }
 
