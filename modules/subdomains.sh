@@ -546,6 +546,7 @@ function sub_passive() {
         if ! NUMOFLINES=$(find .tmp -type f -iname "*_psub.txt" -exec cat {} + | sed "s/^\*\.//" | anew .tmp/passive_subs.txt | sed '/^$/d' | wc -l); then
             NUMOFLINES=0
         fi
+        [[ -s .tmp/passive_subs.txt ]] && anew -q subdomains/subdomains.txt <.tmp/passive_subs.txt 2>/dev/null || true
         end_subfunc "${NUMOFLINES} new subs (passive)" "${FUNCNAME[0]}"
 
     else
@@ -625,6 +626,7 @@ function sub_crt() {
         if ! NUMOFLINES=$(sed 's/^\*\.//' .tmp/crtsh_subs_tmp.txt | sed '/^$/d' | anew .tmp/crtsh_subs.txt | wc -l); then
             NUMOFLINES=0
         fi
+        [[ -s .tmp/crtsh_subs.txt ]] && anew -q subdomains/subdomains.txt <.tmp/crtsh_subs.txt 2>/dev/null || true
 
         end_subfunc "${NUMOFLINES} new subs (cert transparency)" "${FUNCNAME[0]}"
     else
@@ -665,6 +667,7 @@ function sub_localdb() {
             | wc -l); then
             NUMOFLINES=0
         fi
+        [[ -s .tmp/localdb_subs.txt ]] && anew -q subdomains/subdomains.txt <.tmp/localdb_subs.txt 2>/dev/null || true
 
         end_subfunc "${NUMOFLINES} new subs (local DB)" "${FUNCNAME[0]}"
     else

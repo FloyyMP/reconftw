@@ -163,9 +163,11 @@ function webprobe_full() {
                 -location
                 -no-color
                 -json
-                -o "$probe_out"
             )
-            run_command "${httpx_cmd[@]}" <subdomains/subdomains.txt 2>>"$LOGFILE" >/dev/null
+            run_command "${httpx_cmd[@]}" <subdomains/subdomains.txt 2>>"$LOGFILE" \
+                | tee "$probe_out" \
+                | jq -r --unbuffered 'try (.url // empty)' 2>/dev/null \
+                | anew -q webs/webs.txt >/dev/null || true
         else
             local -a axiom_cmd=(
                 axiom-scan
