@@ -238,6 +238,12 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - `OUTPUT_VERBOSITY=0` (quiet): only errors/FAIL printed
 - `OUTPUT_VERBOSITY=1` (normal, default): OK/WARN/FAIL/SKIP status lines
 - `OUTPUT_VERBOSITY=2` (verbose): all of the above + INFO messages + start_func messages
+## Live-Progress Cursor State Machine (`lib/ui.sh`)
+- `ui_live_progress_begin` — prints `\n` to create a blank status slot, sets `_UI_LIVE_NEEDS_UP=true`
+- `ui_live_progress_update` — when `_UI_LIVE_NEEDS_UP=true` uses `\033[1A` (cursor up) to return to the slot before overwriting; every frame ends with `\n` so the scrollback buffer records clean lines instead of raw escape codes; sets `_UI_LIVE_NEEDS_UP=true` on exit
+- `ui_live_progress_break` — erases the slot (going up if `_UI_LIVE_NEEDS_UP=true`), sets `_UI_LIVE_NEEDS_UP=false`; static output then writes on the cleared line and the next update treats the resulting `\n`-fresh line as the new slot without going up
+- `ui_live_progress_end` — same erase as break, then sets `_UI_LIVE_ACTIVE=false`
+- `_UI_CACHED_WIDTH` is invalidated on `SIGWINCH` so a terminal resize never produces wrapped lines that corrupt the cursor offset
 ## Function Lifecycle (start_func / end_func)
 - `start_func name desc` — logs to LOGFILE, sets per-function start timestamp, emits INFO at verbosity >= 2
 - `end_func message name [status]` — touches checkpoint file, calculates elapsed time, calls `_print_status`
@@ -269,6 +275,7 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - `_throttle_jobs` uses `wait -n` (bash 4.3+) to keep at most N jobs running at once
 - Each job's stdout is captured to a per-job temp file; output is replayed on completion per `PARALLEL_LOG_MODE` (summary / tail / full)
 - A heartbeat loop emits live progress to the terminal at verbosity ≥ 1
+- Sequential long-running tools use `run_with_heartbeat "label" [--total-queries N] [--rate-per-sec R] [interval_s] cmd args`; passing `--total-queries` (wordlist line count) and `--rate-per-sec` (tool QPS limit) enables a rate-based ETA countdown — `_bruteforce_domains` and `_resolve_domains` set these automatically from `PUREDNS_PUBLIC_LIMIT` / `DNSX_RATE_LIMIT`
 ## Import / Sourcing Order
 - Covered by the module loading order in the Frameworks section above; no circular imports by design
 ## Logging
@@ -460,6 +467,10 @@ Recon/<domain>/
 - `reconftw.sh` sets `IFS=$'\n\t'` globally. A bare `read -r a b c <<<"$space_string"` puts the entire string into `a`. Use `IFS=' ' read -r a b c <<<"$space_string"` to override IFS inline.
 ### Using anchored `$` regex on external data files without stripping CRLF first
 - External wordlists and FQDN databases often use Windows CRLF (`\r\n`) line endings. When piped through grep, each line retains a trailing `\r`, so `grep -E "pattern$"` silently matches nothing — the `$` anchor sits before `\n` but the last character is `\r`, not the final character of the pattern. Always pipe through `tr -d '\r'` before any anchored regex: `grep -iF "..." file | tr -d '\r' | grep -iE "pattern$"`. This applies to `sub_localdb` and any future function that reads user-supplied data files.
+### Writing raw `\r`-only progress lines to the terminal
+- `printf "\r  text\033[K"` (no trailing `\n`) leaves the line in a half-rendered state in the scrollback buffer; raw escape codes appear as literal characters when the user scrolls or selects text. Always use `ui_live_progress_update` for in-place status — it manages `_UI_LIVE_NEEDS_UP` and terminates every frame with `\n`.
+### Printing static output while `_UI_LIVE_ACTIVE=true` without calling `ui_live_progress_break` first
+- Printing static output directly to stdout while live progress is active leaves the cursor at the wrong position; the next heartbeat `\033[1A` goes to the wrong line and overwrites output with escape codes. Always call `ui_live_progress_break` (which clears the slot and resets `_UI_LIVE_NEEDS_UP=false`) before any `printf` to stdout when `_UI_LIVE_ACTIVE` may be true. `_print_status`, `ui_batch_start`, and `ui_batch_end` all do this correctly.
 ## Error Handling
 - ERR trap in `start()` logs function name, line number, and command to `$LOGFILE` and calls `explain_err()` (`modules/modes.sh:140`)
 - Non-zero exit from `parallel_funcs` increments `RECON_OSINT_PARALLEL_FAILURES` and sets `RECON_PARTIAL_RUN=true`
