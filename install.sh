@@ -406,8 +406,6 @@ declare -A pipxtools=(
     ["postleaksNg"]="six2dez/postleaksNG"
     ["cewler"]="roys/cewler"
     ["fray"]="dalisecurity/fray"
-    ["corsy"]="s0md3v/Corsy"
-    ["jwt_tool"]="ticarpi/jwt_tool"
 )
 
 # Declare repositories and their paths
@@ -439,6 +437,8 @@ declare -A repos=(
     ["reconftw_ai"]="six2dez/reconftw_ai"
     ["gato"]="praetorian-inc/gato"
     ["SSTImap"]="vladko312/SSTImap"
+    ["corsy"]="s0md3v/Corsy"
+    ["jwt_tool"]="ticarpi/jwt_tool"
 )
 
 # Function to display the banner
@@ -646,6 +646,13 @@ function install_tools() {
             if [[ $1 == "dorks_hunter" ]]; then
                 uv pip install --upgrade xnldorker --python venv/bin/python3 &>/dev/null || true
             fi
+        elif [[ -f "pyproject.toml" ]]; then
+            if [[ ! -d "venv" ]]; then
+                uv venv venv &>/dev/null
+            fi
+            if ! uv pip install --upgrade . --python venv/bin/python3 &>/dev/null; then
+                return 1
+            fi
         fi
         return 0
     }
@@ -763,7 +770,10 @@ function install_tools() {
                 fi
                 ;;
             "trufflehog")
-                go install github.com/trufflesecurity/trufflehog/v3@latest &>/dev/null || msg_warn "[$repos_step/$total_repo] $repo: go install failed"
+                # go install is blocked by replace directives in trufflehog's go.mod; build from the cloned repo instead
+                if ! go build -o "${GOPATH}/bin/trufflehog" . &>/dev/null; then
+                    msg_warn "[$repos_step/$total_repo] $repo: go build failed"
+                fi
                 ;;
             "gato")
                 if [[ ! -d "venv" ]]; then
@@ -776,6 +786,22 @@ function install_tools() {
                     uv venv venv &>/dev/null || true
                 fi
                 uv pip install --upgrade -r requirements.txt --python venv/bin/python3 &>/dev/null || true
+                ;;
+            "corsy")
+                # Not a proper Python package — create a wrapper binary after venv install
+                {
+                    echo '#!/usr/bin/env bash'
+                    echo "exec \"${tools}/corsy/venv/bin/python3\" \"${tools}/corsy/corsy.py\" \"\$@\""
+                } > "${GOPATH}/bin/corsy"
+                chmod +x "${GOPATH}/bin/corsy"
+                ;;
+            "jwt_tool")
+                # Not a proper Python package — create a wrapper binary after venv install
+                {
+                    echo '#!/usr/bin/env bash'
+                    echo "exec \"${tools}/jwt_tool/venv/bin/python3\" \"${tools}/jwt_tool/jwt_tool.py\" \"\$@\""
+                } > "${GOPATH}/bin/jwt_tool"
+                chmod +x "${GOPATH}/bin/jwt_tool"
                 ;;
         esac
 
@@ -800,6 +826,39 @@ function install_tools() {
 
         msg_ok "[$repos_step/$total_repo] $repo ready"
     done
+
+    # Install noseyparker (secrets scanner — no Go module or PyPI package, prebuilt binary only)
+    header "Installing noseyparker"
+    local _np_ver _np_arch _np_url _np_tmp _np_bin
+    _np_ver=$(curl -s https://api.github.com/repos/praetorian-inc/noseyparker/releases/latest 2>/dev/null | jq -r '.tag_name // empty')
+    if [[ -n "$_np_ver" ]]; then
+        case "$ARCH" in
+            x86_64 | amd64)  _np_arch="x86_64-unknown-linux-musl" ;;
+            arm64 | aarch64) _np_arch="aarch64-unknown-linux-musl" ;;
+            *)               _np_arch="" ;;
+        esac
+        if [[ -n "$_np_arch" ]]; then
+            _np_url="https://github.com/praetorian-inc/noseyparker/releases/download/${_np_ver}/noseyparker-${_np_ver}-${_np_arch}.tar.gz"
+            _np_tmp=$(mktemp -d)
+            if curl -sL "$_np_url" -o "${_np_tmp}/np.tar.gz" 2>/dev/null && tar -xzf "${_np_tmp}/np.tar.gz" -C "$_np_tmp" 2>/dev/null; then
+                _np_bin=$(find "$_np_tmp" -name "noseyparker" -type f 2>/dev/null | head -1)
+                if [[ -f "$_np_bin" ]]; then
+                    chmod +x "$_np_bin"
+                    cp "$_np_bin" "${GOPATH}/bin/noseyparker"
+                    msg_ok "noseyparker ${_np_ver} installed"
+                else
+                    msg_warn "noseyparker: binary not found in archive"
+                fi
+            else
+                msg_warn "noseyparker: download or extraction failed"
+            fi
+            rm -rf "$_np_tmp"
+        else
+            msg_warn "noseyparker: unsupported architecture ${ARCH}"
+        fi
+    else
+        msg_warn "noseyparker: could not determine latest release version"
+    fi
 
     # Initialize tool configs on first run
     q command -v notify >/dev/null 2>&1 && q notify || true
