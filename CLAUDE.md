@@ -111,7 +111,7 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - `gitdorks_go` (damit5/gitdorks_go) — GitHub dork search
 - `github-endpoints` (gwen001/github-endpoints) — GitHub endpoint discovery
 - `cent` (xm1k3/cent) — nuclei template manager
-- `trufflehog` (trufflesecurity/trufflehog) — secrets scanner (via `go install`)
+- `trufflehog` (trufflesecurity/trufflehog) — secrets scanner (built via `go build` from cloned repo; `go install` is blocked by replace directives in its go.mod)
 - `brutespray` (x90skysn3k/brutespray) — service credential spraying
 ### Python Tools (installed via `uv tool install`)
 - `dnsvalidator` (vortexau/dnsvalidator) — DNS resolver validation
@@ -131,10 +131,13 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - `postleaksNg` (six2dez/postleaksNG) — Postman public leak search
 - `cewler` (roys/cewler) — web wordlist generator
 - `fray` (dalisecurity/fray) — WAF-aware payload testing (PyPI)
+### Repo-Clone Tools with wrapper scripts (Python venvs + shell wrapper in `$GOPATH/bin/`)
+- `corsy` (s0md3v/Corsy) — CORS misconfiguration scanner (not a proper Python package; cloned to `~/Tools/corsy`, venv install, wrapper binary created)
+- `jwt_tool` (ticarpi/jwt_tool) — JWT vulnerability analysis (same pattern as corsy)
 ### Repo-Clone Tools (Python venvs, run via `venv/bin/python3`)
 - `dorks_hunter` (six2dez/dorks_hunter) — Google dork automation
 - `CMSeeK` (Tuhinshubhra/CMSeeK) — CMS fingerprinting
-- `cloud_enum` (initstring/cloud_enum) — AWS/GCP/Azure bucket enumeration
+- `cloud_enum` (initstring/cloud_enum) — AWS/GCP/Azure bucket enumeration (uses `pyproject.toml`, not `requirements.txt`; install via `uv pip install .`)
 - `EmailHarvester` (maldevel/EmailHarvester) — email harvesting
 - `SwaggerSpy` (UndeadSec/SwaggerSpy) — Swagger endpoint leak detection
 - `LeakSearch` (JoelGMSec/LeakSearch) — credential leak search
@@ -159,7 +162,9 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - `sqlmap` — SQL injection (system or via repo clone)
 - `testssl.sh` (testssl/testssl.sh) — TLS/SSL misconfiguration testing
 - `medusa` — credential brute-force (system install)
-- `shodan` CLI — installed via `uv tool install shodan`
+- `shodan` CLI — installed via `pip install shodan --break-system-packages` (uv install broken by missing `pkg_resources`)
+### Prebuilt Binary Tools (downloaded from GitHub Releases)
+- `noseyparker` (praetorian-inc/noseyparker) — secrets scanner; no Go module or PyPI package, installed as prebuilt binary (x86_64 + arm64 supported)
 ### Rust Tools
 - `smugglex` (Cargo) — HTTP request smuggling detection
 - Rustup installed from `https://sh.rustup.rs`
@@ -167,7 +172,7 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - `reconftw.cfg` — sourced after CLI parsing; all feature flags, rate limits, timeouts, wordlist paths, API keys, thread counts
 - `secrets.cfg` (gitignored, auto-sourced) — API keys and tokens separated from main config
 - `secrets.cfg.example` — template showing all supported secret vars
-- Feature flags: `OSINT=true`, `SUBDOMAINS_GENERAL=true`, `VULNS_GENERAL=false`, etc.
+- Feature flags: `OSINT=true`, `SUBDOMAINS_GENERAL=true`, `VULNS_GENERAL=false`, etc.; `SUBLOCALDB=true` / `LOCAL_DOMAIN_DB` control the local FQDN database lookup (`sub_localdb`)
 - Rate limits: `HTTPX_RATELIMIT=150`, `NUCLEI_RATELIMIT=150`, `FFUF_RATELIMIT=0`
 - Thread counts: auto-scaled via `AVAILABLE_CORES=$(nproc)` with multipliers per tool
 - Timeouts: per-tool in seconds or minutes (`CMSSCAN_TIMEOUT=3600`, `SUBFINDER_ENUM_TIMEOUT=180`)
@@ -453,6 +458,8 @@ Recon/<domain>/
 - `declare -A` inside a sourced file creates a local array scoped to the sourcing call. Use `declare -gA` so the array is placed in the global environment regardless of how or where the file is sourced.
 ### Parsing space-delimited strings with `read` when ambient IFS may differ
 - `reconftw.sh` sets `IFS=$'\n\t'` globally. A bare `read -r a b c <<<"$space_string"` puts the entire string into `a`. Use `IFS=' ' read -r a b c <<<"$space_string"` to override IFS inline.
+### Using anchored `$` regex on external data files without stripping CRLF first
+- External wordlists and FQDN databases often use Windows CRLF (`\r\n`) line endings. When piped through grep, each line retains a trailing `\r`, so `grep -E "pattern$"` silently matches nothing — the `$` anchor sits before `\n` but the last character is `\r`, not the final character of the pattern. Always pipe through `tr -d '\r'` before any anchored regex: `grep -iF "..." file | tr -d '\r' | grep -iE "pattern$"`. This applies to `sub_localdb` and any future function that reads user-supplied data files.
 ## Error Handling
 - ERR trap in `start()` logs function name, line number, and command to `$LOGFILE` and calls `explain_err()` (`modules/modes.sh:140`)
 - Non-zero exit from `parallel_funcs` increments `RECON_OSINT_PARALLEL_FAILURES` and sets `RECON_PARTIAL_RUN=true`
