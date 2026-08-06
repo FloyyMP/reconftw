@@ -1763,6 +1763,20 @@ function generate_attack_map() {
         html_takeover_section='<section class="section takeover-alert"><h2>Subdomain Takeovers <span class="badge">'"$takeover_count"'</span></h2>'"$(_html_pre "$takeover_lines")"'</section>'
     fi
 
+    local html_cve_secrets_group="" html_cloud_priority_group="" _s
+    if [[ -n "$cve_lines" || -n "$secrets_lines" ]]; then
+        _s=""
+        [[ -n "$cve_lines" ]]     && _s+='<section class="section"><h2>CVEs (Shodan)</h2>'"$(_html_pre "$cve_lines")"'</section>'
+        [[ -n "$secrets_lines" ]] && _s+='<section class="section"><h2>JS Secrets</h2>'"$(_html_pre "$secrets_lines")"'</section>'
+        html_cve_secrets_group='<div class="two-col">'"$_s"'</div>'
+    fi
+    if [[ -n "$cloud_lines" || -n "$priority_lines" ]]; then
+        _s=""
+        [[ -n "$cloud_lines" ]]    && _s+='<section class="section"><h2>Cloud Assets</h2>'"$(_html_pre "$cloud_lines")"'</section>'
+        [[ -n "$priority_lines" ]] && _s+='<section class="section"><h2>Priority Targets</h2>'"$(_html_pre "$priority_lines")"'</section>'
+        html_cloud_priority_group='<div class="two-col">'"$_s"'</div>'
+    fi
+
     local domain_he ts_he
     domain_he=$(printf '%s' "$domain" | _he)
     ts_he=$(printf '%s' "$ts" | _he)
@@ -1781,7 +1795,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .header h1{font-size:1.75rem;font-weight:700;letter-spacing:-.5px}
 .header p{color:#94a3b8;margin-top:8px;font-size:.85rem}
 .container{max-width:1280px;margin:0 auto;padding:32px 24px}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin-bottom:24px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px}
 .stat-card{background:#fff;border-radius:10px;padding:18px 10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .stat-card .value{font-size:1.75rem;font-weight:700;color:#1a1a2e}
 .stat-card .label{font-size:.67rem;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
@@ -1862,27 +1876,9 @@ ${html_ports}
 ${html_vulns}
 </section>
 
-<div class="two-col">
-<section class="section">
-  <h2>CVEs (Shodan)</h2>
-$(_html_pre "$cve_lines")
-</section>
-<section class="section">
-  <h2>JS Secrets</h2>
-$(_html_pre "$secrets_lines")
-</section>
-</div>
+${html_cve_secrets_group}
 
-<div class="two-col">
-<section class="section">
-  <h2>Cloud Assets</h2>
-$(_html_pre "$cloud_lines")
-</section>
-<section class="section">
-  <h2>Priority Targets</h2>
-$(_html_pre "$priority_lines")
-</section>
-</div>
+${html_cloud_priority_group}
 
 </div>
 </body>
