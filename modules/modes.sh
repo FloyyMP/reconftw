@@ -765,7 +765,7 @@ function vulns() {
                     return 1
                 fi
             fi
-            parallel_funcs "${PAR_VULNS_GROUP4_SIZE:-3}" webcache spraying brokenLinks fray_checks cors_checks open_redirect
+            parallel_funcs "${PAR_VULNS_GROUP4_SIZE:-3}" webcache spraying brokenLinks fray_checks cors_checks open_redirect dast_passive
             local vulns_g4_rc=$?
             if ((vulns_g4_rc > 0)); then
                 if [[ "${CONTINUE_ON_TOOL_ERROR:-true}" == "true" ]]; then
@@ -796,6 +796,7 @@ function vulns() {
             fray_checks
             cors_checks
             open_redirect
+            dast_passive
             run_module_with_axiom_failover fuzzparams
             run_module_with_axiom_failover nuclei_dast
             4xxbypass
@@ -1651,6 +1652,21 @@ function generate_attack_map() {
     local takeover_lines=""
     [[ -s "webs/takeover.txt" ]] && takeover_lines=$(head -20 "webs/takeover.txt")
 
+    local missing_headers_lines="" cookie_issues_lines="" info_disclosure_lines=""
+    local missing_headers_count=0 cookie_issues_count=0 info_disclosure_count=0
+    if [[ -s "vulns/missing_headers.txt" ]]; then
+        missing_headers_lines=$(head -30 "vulns/missing_headers.txt")
+        missing_headers_count=$(count_lines "vulns/missing_headers.txt")
+    fi
+    if [[ -s "vulns/cookie_issues.txt" ]]; then
+        cookie_issues_lines=$(head -20 "vulns/cookie_issues.txt")
+        cookie_issues_count=$(count_lines "vulns/cookie_issues.txt")
+    fi
+    if [[ -s "vulns/info_disclosure.txt" ]]; then
+        info_disclosure_lines=$(head -20 "vulns/info_disclosure.txt")
+        info_disclosure_count=$(count_lines "vulns/info_disclosure.txt")
+    fi
+
     # --- Markdown ---
     {
         printf "# Attack Map: %s\n\n_Generated: %s_\n\n---\n\n" "$domain" "$ts"
@@ -1673,6 +1689,9 @@ function generate_attack_map() {
         [[ -n "$crit_lines" ]] && printf "### Critical (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$vuln_c" "$crit_lines"
         [[ -n "$high_lines" ]] && printf "### High (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$vuln_h" "$high_lines"
         [[ -z "$crit_lines$high_lines" ]] && printf '_No critical or high severity findings_\n\n'
+        [[ -n "$missing_headers_lines" ]] && printf "## Missing Security Headers (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$missing_headers_count" "$missing_headers_lines"
+        [[ -n "$cookie_issues_lines" ]]   && printf "## Cookie Flag Issues (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$cookie_issues_count" "$cookie_issues_lines"
+        [[ -n "$info_disclosure_lines" ]] && printf "## Information Disclosure (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$info_disclosure_count" "$info_disclosure_lines"
         [[ -n "$cve_lines" ]]     && printf "## CVEs (Shodan)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$cve_lines"
         [[ -n "$secrets_lines" ]] && printf "## JS Secrets\n\n\`\`\`\n%s\n\`\`\`\n\n" "$secrets_lines"
         [[ -n "$cloud_lines" ]]   && printf "## Cloud Assets\n\n\`\`\`\n%s\n\`\`\`\n\n" "$cloud_lines"
@@ -1713,6 +1732,13 @@ function generate_attack_map() {
     stat_tiles+='<div class="stat-card'"$_vh"'"><div class="value">'"$vuln_h"'</div><div class="label">High</div></div>'$'\n'
     stat_tiles+='<div class="stat-card'"$_vm"'"><div class="value">'"$vuln_m"'</div><div class="label">Medium</div></div>'$'\n'
     stat_tiles+='<div class="stat-card"><div class="value">'"$vuln_total"'</div><div class="label">Total Findings</div></div>'$'\n'
+    local _mh="" _ci="" _id=""
+    [[ "${missing_headers_count:-0}" -gt 0 ]] && _mh=" medium"
+    [[ "${cookie_issues_count:-0}"   -gt 0 ]] && _ci=" medium"
+    [[ "${info_disclosure_count:-0}" -gt 0 ]] && _id=" high"
+    stat_tiles+='<div class="stat-card'"$_mh"'"><div class="value">'"${missing_headers_count:-0}"'</div><div class="label">Missing Headers</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card'"$_ci"'"><div class="value">'"${cookie_issues_count:-0}"'</div><div class="label">Cookie Issues</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card'"$_id"'"><div class="value">'"${info_disclosure_count:-0}"'</div><div class="label">Info Disclosure</div></div>'$'\n'
 
     local html_subs=""
     if [[ -n "$interesting_subs" ]]; then
@@ -1764,6 +1790,14 @@ function generate_attack_map() {
     fi
 
     local html_cve_secrets_group="" html_cloud_priority_group="" _s
+    local html_dast_passive_group=""
+    if [[ -n "$missing_headers_lines" || -n "$cookie_issues_lines" || -n "$info_disclosure_lines" ]]; then
+        _s=""
+        [[ -n "$missing_headers_lines" ]] && _s+='<section class="section"><h2>Missing Security Headers <span class="badge">'"$missing_headers_count"'</span></h2>'"$(_html_pre "$missing_headers_lines")"'</section>'
+        [[ -n "$cookie_issues_lines" ]]   && _s+='<section class="section"><h2>Cookie Flag Issues <span class="badge">'"$cookie_issues_count"'</span></h2>'"$(_html_pre "$cookie_issues_lines")"'</section>'
+        [[ -n "$info_disclosure_lines" ]] && _s+='<section class="section"><h2>Information Disclosure <span class="badge">'"$info_disclosure_count"'</span></h2>'"$(_html_pre "$info_disclosure_lines")"'</section>'
+        html_dast_passive_group='<div class="two-col">'"$_s"'</div>'
+    fi
     if [[ -n "$cve_lines" || -n "$secrets_lines" ]]; then
         _s=""
         [[ -n "$cve_lines" ]]     && _s+='<section class="section"><h2>CVEs (Shodan)</h2>'"$(_html_pre "$cve_lines")"'</section>'
@@ -1875,6 +1909,8 @@ ${html_ports}
   <h2>Vulnerabilities</h2>
 ${html_vulns}
 </section>
+
+${html_dast_passive_group}
 
 ${html_cve_secrets_group}
 

@@ -1314,3 +1314,118 @@ function open_redirect() {
     fi
 
 }
+
+function dast_passive() {
+
+    if ! ensure_dirs .tmp vulns; then return 1; fi
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } \
+        && [[ ${DAST_PASSIVE:-true} == true ]] && [[ -s "webs/webs_all.txt" ]]; then
+
+        start_func "${FUNCNAME[0]}" "Passive DAST: Security Headers / Cookie Flags / Info Disclosure"
+
+        local probe_json=".tmp/dast_passive_probe.jsonl"
+        : >"$probe_json"
+        run_command httpx \
+            -l "webs/webs_all.txt" \
+            -silent -json \
+            -H "${HEADER}" \
+            -rl "${HTTPX_RATELIMIT:-150}" \
+            -timeout 10 \
+            -no-color \
+            2>>"$LOGFILE" >"$probe_json" || true
+
+        if [[ ! -s "$probe_json" ]]; then
+            end_func "No HTTP responses to analyze" "${FUNCNAME[0]}"
+            return 0
+        fi
+
+        # --- Missing security headers ---
+        : >"vulns/missing_headers.txt"
+        local -a hdr_checks=(
+            "x-content-type-options|Missing X-Content-Type-Options (MIME sniffing)"
+            "content-security-policy|Missing Content-Security-Policy (XSS risk)"
+            "x-frame-options|Missing X-Frame-Options (clickjacking)"
+            "referrer-policy|Missing Referrer-Policy (info leakage)"
+            "permissions-policy|Missing Permissions-Policy"
+            "cross-origin-opener-policy|Missing Cross-Origin-Opener-Policy"
+        )
+        for _entry in "${hdr_checks[@]}"; do
+            local _hdr="${_entry%%|*}" _lbl="${_entry#*|}"
+            jq -r --arg h "$_hdr" --arg l "$_lbl" \
+                'if (.response_headers | has($h) | not) then "\(.url)  [\($l)]" else empty end' \
+                "$probe_json" 2>/dev/null | anew -q "vulns/missing_headers.txt" || true
+        done
+        # HSTS only meaningful on HTTPS origins
+        jq -r '
+            select(.url | startswith("https://")) |
+            if (.response_headers | has("strict-transport-security") | not) then
+                "\(.url)  [Missing HSTS (SSL downgrade risk)]"
+            else empty end
+        ' "$probe_json" 2>/dev/null | anew -q "vulns/missing_headers.txt" || true
+
+        # --- Cookie security flags ---
+        : >"vulns/cookie_issues.txt"
+        jq -r '
+            .url as $u |
+            (.response_headers["set-cookie"] // empty) |
+            select(type == "string") |
+            . as $c |
+            [
+                if ($c | test("(?i)httponly") | not)  then "[Missing HttpOnly]"  else "" end,
+                if (($c | test("(?i)secure") | not) and ($u | startswith("https://")))
+                    then "[Missing Secure]" else "" end,
+                if ($c | test("(?i)samesite") | not)  then "[Missing SameSite]"  else "" end
+            ] | join("") |
+            select(. != "") |
+            "\($u)  " + . + "  " + ($c | split(";")[0])
+        ' "$probe_json" 2>/dev/null | anew -q "vulns/cookie_issues.txt" || true
+
+        # --- Information disclosure ---
+        : >"vulns/info_disclosure.txt"
+        jq -r '
+            .url as $u |
+            (.response_headers.server // "") |
+            select(. != "" and test("[0-9]")) |
+            "\($u)  [Server version disclosure: " + . + "]"
+        ' "$probe_json" 2>/dev/null | anew -q "vulns/info_disclosure.txt" || true
+        jq -r '
+            .url as $u |
+            (.response_headers["x-powered-by"] // "") |
+            select(. != "") |
+            "\($u)  [X-Powered-By: " + . + "]"
+        ' "$probe_json" 2>/dev/null | anew -q "vulns/info_disclosure.txt" || true
+        jq -r '
+            .url as $u |
+            ((.response_headers["x-aspnet-version"] // "") + (.response_headers["x-aspnetmvc-version"] // "")) |
+            select(. != "") |
+            "\($u)  [ASP.NET version: " + . + "]"
+        ' "$probe_json" 2>/dev/null | anew -q "vulns/info_disclosure.txt" || true
+        local -a _debug_hdrs=(x-debug-token x-debug-token-link x-generator x-drupal-cache x-envoy-upstream-service-time)
+        for _dh in "${_debug_hdrs[@]}"; do
+            jq -r --arg h "$_dh" '
+                .url as $u |
+                (.response_headers[$h] // "") |
+                select(. != "") |
+                "\($u)  [" + $h + ": " + . + "]"
+            ' "$probe_json" 2>/dev/null | anew -q "vulns/info_disclosure.txt" || true
+        done
+
+        local total=0
+        [[ -s "vulns/missing_headers.txt" ]] && total=$((total + $(wc -l < "vulns/missing_headers.txt" | tr -d ' ')))
+        [[ -s "vulns/cookie_issues.txt" ]]   && total=$((total + $(wc -l < "vulns/cookie_issues.txt"   | tr -d ' ')))
+        [[ -s "vulns/info_disclosure.txt" ]] && total=$((total + $(wc -l < "vulns/info_disclosure.txt"  | tr -d ' ')))
+        [[ $total -gt 0 ]] && notification "${total} passive DAST findings (headers/cookies/disclosure)" info
+
+        end_func "Results: vulns/{missing_headers,cookie_issues,info_disclosure}.txt" "${FUNCNAME[0]}"
+    else
+        if [[ ${DAST_PASSIVE:-true} == false ]]; then
+            skip_notification "disabled"
+        elif [[ ! -s "webs/webs_all.txt" ]]; then
+            skip_notification "noinput"
+        else
+            skip_notification "processed"
+        fi
+    fi
+
+}
