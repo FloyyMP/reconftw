@@ -337,11 +337,11 @@ CLI (reconftw.sh)
 | Component | Responsibility | File |
 |-----------|----------------|------|
 | Entry point & CLI parser | getopt argument parsing, config sourcing, mode dispatch | `reconftw.sh` |
-| Mode orchestration | `start`/`end`, workflow functions (`recon`, `passive`, `all`, `vulns`, `osint`, `subs_menu`, `webs_menu`, `zen_menu`, `monitor_mode`) | `modules/modes.sh` |
+| Mode orchestration | `start`/`end`, workflow functions (`recon`, `passive`, `all`, `vulns`, `osint`, `subs_menu`, `webs_menu`, `zen_menu`, `monitor_mode`, `attack_map`); `generate_attack_map()` produces `attack-map.html` + `attack-map.md` | `modules/modes.sh` |
 | Function lifecycle | `start_func`/`end_func`, checkpointing, logging, notifications, reporting, plugins, health check | `modules/core.sh` |
 | Subdomain enumeration | All `sub_*` functions, `subtakeover`, `zonetransfer`, `s3buckets`, `geo_info` | `modules/subdomains.sh` |
 | Web analysis | `webprobe_full`, `screenshot`, `nuclei_check`, `fuzz`, `jschecks`, `urlchecks`, `waf_checks`, and 20+ others | `modules/web.sh` |
-| Vulnerability scanning | `xss`, `ssrf_checks`, `sqli`, `crlf_checks`, `lfi`, `ssti`, `smuggling`, `fuzzparams`, `nuclei_dast`, and others | `modules/vulns.sh` |
+| Vulnerability scanning | `xss`, `ssrf_checks`, `sqli`, `crlf_checks`, `lfi`, `ssti`, `smuggling`, `fuzzparams`, `nuclei_dast`, `cors_checks`, `jwt_checks`, `open_redirect`, `test_ssl`, `4xxbypass`, `webcache`, `spraying`, `command_injection`, `fray_checks`; passive DAST: `dast_passive` (security headers / cookie flags / info disclosure / MIME mismatch), `exposed_files` (backup & sensitive file detection), `http_methods` (TRACE/PUT/DELETE) | `modules/vulns.sh` |
 | OSINT collection | `domain_info`, `ip_info`, `emails`, `google_dorks`, `github_leaks`, `github_actions_audit`, `cloud_enum_scan`, etc. | `modules/osint.sh` |
 | Shared utilities | `run_command`, `sed_i`, `deleteOutScoped`, `validate_config`, `cache_*`, `checkpoint_*`, `circuit_breaker_*`, rate-limit adaption | `modules/utils.sh` |
 | Axiom/distributed mode | `axiom_launch`, `axiom_shutdown`, `axiom_selected`, `resolvers_update`, `ipcidr_target` | `modules/axiom.sh` |
@@ -435,6 +435,12 @@ Recon/<domain>/
 ├── webs/             # web probe results, JS, URLs
 ├── hosts/            # port scan / service results
 ├── vulns/            # vulnerability findings
+│   ├── missing_headers.txt      # dast_passive: missing CSP/HSTS/X-Frame-Options/etc
+│   ├── cookie_issues.txt        # dast_passive: Set-Cookie missing Secure/HttpOnly/SameSite
+│   ├── info_disclosure.txt      # dast_passive: Server version, X-Powered-By, debug headers
+│   ├── mime_mismatch.txt        # dast_passive: Content-Type vs file extension mismatches
+│   ├── exposed_files.txt        # exposed_files: accessible backup/source/sensitive files
+│   └── http_methods.txt         # http_methods: TRACE/PUT/DELETE enabled hosts
 ├── osint/            # OSINT data (emails, dorks, cloud, leaks)
 ├── screenshots/      # webpage screenshots
 └── ai_result/        # AI-generated report output
@@ -454,6 +460,33 @@ Recon/<domain>/
 - **macOS bash version:** reconftw.sh re-execs itself under Homebrew bash ≥ 4 on macOS (system bash is 3.2); `lib/parallel.sh` requires bash 4.3+ for `wait -n`
 - **Working directory:** `start()` calls `cd "$dir"` (the per-target output dir) before any module function runs; all relative paths inside modules resolve against the target dir. `reconftw.sh` captures `startdir=${PWD}` before this
 - **No subshell isolation per module:** Modules are sourced functions, not subprocess commands. A `return` inside a module returns from the function; an `exit` would kill the whole shell
+## DAST Passive Functions Pattern
+Three functions in `modules/vulns.sh` mirror what Invicti / OWASP ZAP / Burp Suite passive scanning produces. All run as part of `vulns()` parallel group 4 and are included in `attack_map` mode.
+
+### `dast_passive` (flag: `DAST_PASSIVE=true`)
+One httpx `-json` probe across `webs/webs_all.txt` feeds four checks:
+- **Missing security headers**: X-Content-Type-Options, CSP, HSTS (HTTPS-only), X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP → `vulns/missing_headers.txt`
+- **Cookie flag issues**: Set-Cookie missing Secure (HTTPS-only), HttpOnly, SameSite → `vulns/cookie_issues.txt`
+- **Info disclosure**: Server with version digit, X-Powered-By, ASP.NET version, debug headers (x-debug-token, x-generator, x-drupal-cache, x-envoy-upstream-service-time) → `vulns/info_disclosure.txt`
+- **MIME mismatches**: `.json`/`.xml`/`.js`/`.css` served as `text/html`; script extensions served as `application/octet-stream` → `vulns/mime_mismatch.txt`
+
+### `exposed_files` (flags: `EXPOSED_FILES=true`, `EXPOSED_FILES_URL_LIMIT=400`)
+Two-phase candidate generation then single httpx probe (mc 200/206, filter-length 0):
+1. Backup variants (`.bak .old .orig .backup .copy .tmp .swp .save .bkp ~`) of crawled PHP/ASP/config/script URLs (capped at `EXPOSED_FILES_URL_LIMIT`)
+2. ~40 hardcoded sensitive paths per live host: `.env` variants, SQL dumps, `.git/config`, `id_rsa`, `phpinfo.php`, `adminer.php`, `docker-compose.yml`, `composer.json`, log files, `swagger.json`, etc.
+→ `vulns/exposed_files.txt`
+
+### `http_methods` (flag: `HTTP_METHODS=true`)
+- OPTIONS probe → parses `Allow` / `Public` / `Access-Control-Allow-Methods` for PUT/DELETE/TRACE/CONNECT
+- Direct TRACE probe (mc 200) for XST confirmation
+→ `vulns/http_methods.txt`
+
+### `generate_attack_map` (`modules/modes.sh`)
+Produces `attack-map.html` and `attack-map.md` summarising a complete target. HTML features:
+- Stat tile grid (`repeat(auto-fill, minmax(160px, 1fr))`) — severity-colored tiles including all DAST passive counts
+- Conditional two-col sections (only rendered when data is non-empty): Takeovers, High-Value Subdomains/Tech, Services, Vulnerabilities, Passive DAST (headers/cookies/disclosure), Exposed Files/HTTP Methods/MIME, CVEs/JS Secrets, Cloud/Priority
+- Dark mode via `@media (prefers-color-scheme: dark)` + `[data-theme]` overrides
+
 ## Anti-Patterns
 ### Direct external tool calls without `run_command`
 ### Writing checkpoint files manually
