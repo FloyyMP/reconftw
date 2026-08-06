@@ -46,20 +46,14 @@ deep_wildcard_filter() {
 
         # Extract unique parent domains at each level
         # e.g., from "a.b.c.example.com" extract "b.c.example.com", "c.example.com"
-        : > ".tmp/dwf_parents.txt"
-        while IFS= read -r subdomain; do
-            # Skip if it's already the base domain or has no subdomain part
-            [[ "$subdomain" == "$domain" ]] && continue
-
-            # Extract parent by removing the first label
-            local parent
-            parent="${subdomain#*.}"
-
-            # Only consider parents that are still subdomains of target domain
-            if [[ "$parent" == *".$domain" ]] || [[ "$parent" == "$domain" ]]; then
-                echo "$parent" >> ".tmp/dwf_parents.txt"
-            fi
-        done < ".tmp/dwf_working.txt"
+        awk -v base="$domain" '
+            BEGIN { dotbase = "." base; dbl = length(dotbase) }
+            $0 == base { next }
+            {
+                sub(/^[^.]+\./, "")
+                if ($0 == base || (length($0) > dbl && substr($0, length($0)-dbl+1) == dotbase)) print
+            }
+        ' ".tmp/dwf_working.txt" > ".tmp/dwf_parents.txt"
 
         # Get unique parents
         sort -u ".tmp/dwf_parents.txt" -o ".tmp/dwf_parents_unique.txt"
@@ -79,13 +73,13 @@ deep_wildcard_filter() {
         fi
 
         # Generate random probe hostnames for each parent
-        : > ".tmp/dwf_probes.txt"
-        while IFS= read -r parent; do
-            # Generate random string (alphanumeric)
-            local random_str
-            random_str=$(head -c 100 /dev/urandom 2>/dev/null | LC_ALL=C tr -dc 'a-z0-9' | head -c 12)
-            echo "${random_str}.${parent}" >> ".tmp/dwf_probes.txt"
-        done < ".tmp/dwf_parents_final.txt"
+        awk 'BEGIN { srand(); chars = "abcdefghijklmnopqrstuvwxyz0123456789"; n = length(chars) }
+            {
+                s = ""
+                for (i = 0; i < 12; i++) s = s substr(chars, int(rand()*n)+1, 1)
+                print s "." $0
+            }
+        ' ".tmp/dwf_parents_final.txt" > ".tmp/dwf_probes.txt"
 
         # Test which random probes resolve (indicating wildcard)
         if [[ -s ".tmp/dwf_probes.txt" ]]; then
@@ -93,13 +87,8 @@ deep_wildcard_filter() {
 
             # Extract parent domains that are wildcards
             if [[ -s ".tmp/dwf_resolved_probes.txt" ]]; then
-                while IFS= read -r resolved_probe; do
-                    # Extract the parent (remove the random prefix we added)
-                    local wildcard_parent
-                    wildcard_parent="${resolved_probe#*.}"
-                    echo "$wildcard_parent" >> ".tmp/dwf_new_wildcards.txt"
-                    ((wildcards_found++))
-                done < ".tmp/dwf_resolved_probes.txt"
+                awk '{sub(/^[^.]+\./, ""); print}' ".tmp/dwf_resolved_probes.txt" >> ".tmp/dwf_new_wildcards.txt"
+                wildcards_found=$(grep -c . ".tmp/dwf_resolved_probes.txt" 2>/dev/null || echo 0)
 
                 if [[ -s ".tmp/dwf_new_wildcards.txt" ]]; then
                     sort -u ".tmp/dwf_new_wildcards.txt" >> ".tmp/dwf_wildcards.txt"
