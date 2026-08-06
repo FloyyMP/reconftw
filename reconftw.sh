@@ -169,7 +169,7 @@ fi
 
 CLI_ARGS=()
 mapfile -d '' -t CLI_ARGS < <(normalize_vps_count_args "$@")
-PROGARGS=$(getopt -o 'd:m:l:x:i:o:f:q:c:zrspanwvyh' --long 'domain:,list:,recon,subdomains,passive,all,web,osint,zen,deep,help,vps,vps-count:,ai,check-tools,health-check,quick-rescan,incremental,adaptive-rate,dry-run,parallel,no-parallel,monitor,monitor-interval:,monitor-cycles:,refresh-cache,gen-resolvers,force,export:,report-only,no-report,parallel-log:,quiet,verbose,no-color,log-format:,show-cache,banner,no-banner,legal' -n 'reconFTW' -- "${CLI_ARGS[@]}")
+PROGARGS=$(getopt -o 'd:m:l:x:i:o:f:q:c:zrspanwvyh' --long 'domain:,list:,recon,subdomains,passive,all,web,osint,zen,map,deep,help,vps,vps-count:,ai,check-tools,health-check,quick-rescan,incremental,adaptive-rate,dry-run,parallel,no-parallel,monitor,monitor-interval:,monitor-cycles:,refresh-cache,gen-resolvers,force,export:,report-only,no-report,parallel-log:,quiet,verbose,no-color,log-format:,show-cache,banner,no-banner,legal' -n 'reconFTW' -- "${CLI_ARGS[@]}")
 
 exit_status=$?
 if [[ $exit_status -ne 0 ]]; then
@@ -310,6 +310,11 @@ while true; do
             ;;
         '-z' | '--zen')
             opt_mode='z'
+            shift
+            continue
+            ;;
+        '--map')
+            opt_mode='M'
             shift
             continue
             ;;
@@ -846,6 +851,10 @@ case $opt_mode in
         else
             zen_menu
         fi
+        ;;
+    'M')
+        export VULNS_GENERAL=true
+        attack_map
         ;;
     'c')
         if [[ -n $multi ]]; then

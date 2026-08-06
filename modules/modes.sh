@@ -477,6 +477,7 @@ function end() {
             p) mode_label="PASSIVE" ;;
             a) mode_label="ALL" ;;
             z) mode_label="ZEN" ;;
+            M) mode_label="MAP" ;;
         esac
         if [[ "${opt_mode:-r}" == "n" ]]; then
             subs_count="N/A (OSINT-only)"
@@ -1579,6 +1580,400 @@ function monitor_mode() {
     done
 }
 
+function generate_attack_map() {
+    local out_md="attack-map.md"
+    local out_html="attack-map.html"
+    local ts
+    ts=$(date +'%Y-%m-%d %H:%M:%S')
+
+    _he() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
+
+    local subs_count webs_count ip_count email_count cred_count secret_count takeover_count port_count
+    subs_count=$(count_lines "subdomains/subdomains.txt")
+    webs_count=$(count_lines "webs/webs_all.txt")
+    ip_count=$(count_lines "hosts/ips.txt")
+    email_count=$(count_lines "osint/emails.txt")
+    cred_count=$(count_lines "osint/passwords.txt")
+    secret_count=$(cat js/js_secrets.txt js/js_secrets_jsmap.txt js/js_secrets_jsmap_jsluice.txt 2>/dev/null \
+        | sort -u | grep -c . 2>/dev/null || echo 0)
+    takeover_count=$(count_lines "webs/takeover.txt")
+    port_count=0
+    [[ -s "hosts/portscan_active.gnmap" ]] \
+        && port_count=$(grep -c "^Host:" "hosts/portscan_active.gnmap" 2>/dev/null || echo 0)
+
+    local vuln_c=0 vuln_h=0 vuln_m=0 vuln_l=0 vuln_i=0
+    [[ -s "nuclei_output/critical.txt" ]] && vuln_c=$(count_lines "nuclei_output/critical.txt")
+    [[ -s "nuclei_output/high.txt" ]]     && vuln_h=$(count_lines "nuclei_output/high.txt")
+    [[ -s "nuclei_output/medium.txt" ]]   && vuln_m=$(count_lines "nuclei_output/medium.txt")
+    [[ -s "nuclei_output/low.txt" ]]      && vuln_l=$(count_lines "nuclei_output/low.txt")
+    [[ -s "nuclei_output/info.txt" ]]     && vuln_i=$(count_lines "nuclei_output/info.txt")
+    local vuln_total=$(( vuln_c + vuln_h + vuln_m + vuln_l + vuln_i ))
+
+    local interesting_subs="" interesting_count=0
+    [[ -s "subdomains/subdomains.txt" ]] && interesting_subs=$(grep -iE \
+        'admin|api|dev|stage|test|internal|vpn|auth|sso|dashboard|portal|beta|legacy|backup|mgmt|manage|monitor|git|jenkins|jira|grafana|kibana|elastic|ci|cd|deploy|mail|owa|remote|rdp|ftp|sftp|bastion|jump|secret|token|debug|config|setup' \
+        "subdomains/subdomains.txt" 2>/dev/null | sort -u | head -60 || true)
+    [[ -n "$interesting_subs" ]] && interesting_count=$(wc -l <<< "$interesting_subs" | tr -d ' ')
+
+    local exposed_ports=""
+    [[ -s "hosts/portscan_active.gnmap" ]] && exposed_ports=$(grep -oE '[0-9]+/open/tcp' \
+        "hosts/portscan_active.gnmap" 2>/dev/null \
+        | cut -d/ -f1 | sort -n | uniq -c | sort -rn \
+        | awk '$2!=80 && $2!=443 && $2!=8080 && $2!=8443 {print $2 "/tcp  x" $1 " hosts"}' \
+        | head -30 || true)
+
+    local tech_stack="" tech_count=0
+    [[ -s ".tmp/web_full_info.txt" ]] && tech_stack=$(grep -oE '\[[A-Za-z][^\]]{2,40}\]' \
+        ".tmp/web_full_info.txt" 2>/dev/null \
+        | grep -ivE '^\[(https?|[0-9]{3}|[0-9]+\.[0-9]+|[0-9]+)\]' \
+        | tr -d '[]' | sort | uniq -c | sort -rn | head -25 \
+        | awk '{c=$1; $1=""; gsub(/^ /,"",$0); print $0 " (" c ")"}' || true)
+    [[ -n "$tech_stack" ]] && tech_count=$(wc -l <<< "$tech_stack" | tr -d ' ')
+
+    local crit_lines="" high_lines=""
+    [[ -s "nuclei_output/critical.txt" ]] && crit_lines=$(head -25 "nuclei_output/critical.txt")
+    [[ -s "nuclei_output/high.txt" ]]     && high_lines=$(head -25 "nuclei_output/high.txt")
+
+    local cve_lines=""
+    [[ -s "osint/shodan_cves.txt" ]] && cve_lines=$(head -20 "osint/shodan_cves.txt")
+
+    local secrets_lines=""
+    secrets_lines=$(cat js/js_secrets.txt js/js_secrets_jsmap.txt 2>/dev/null \
+        | sort -u | head -20 || true)
+
+    local cloud_lines=""
+    cloud_lines=$(cat osint/cloud_enum.txt subdomains/s3buckets.txt subdomains/cloud_assets.txt 2>/dev/null \
+        | sort -u | head -20 || true)
+
+    local priority_lines=""
+    [[ -s "hotlist.txt" ]] && priority_lines=$(head -20 "hotlist.txt")
+
+    local takeover_lines=""
+    [[ -s "webs/takeover.txt" ]] && takeover_lines=$(head -20 "webs/takeover.txt")
+
+    # --- Markdown ---
+    {
+        printf "# Attack Map: %s\n\n_Generated: %s_\n\n---\n\n" "$domain" "$ts"
+        printf "## Statistics\n\n| Metric | Count |\n|--------|-------|\n"
+        printf "| Subdomains | %s |\n| Live Web Hosts | %s |\n| IPs | %s |\n" \
+            "$subs_count" "$webs_count" "$ip_count"
+        printf "| Hosts w/ Open Ports | %s |\n| Emails | %s |\n" "$port_count" "$email_count"
+        printf "| Leaked Credentials | %s |\n| JS Secrets | %s |\n| Subdomain Takeovers | %s |\n" \
+            "$cred_count" "$secret_count" "$takeover_count"
+        printf "| Nuclei C/H/M/L/I | %s/%s/%s/%s/%s |\n\n" \
+            "$vuln_c" "$vuln_h" "$vuln_m" "$vuln_l" "$vuln_i"
+        printf "## High-Value Subdomains\n\n"
+        [[ -n "$interesting_subs" ]] && printf '```\n%s\n```\n\n' "$interesting_subs" || printf '_None identified_\n\n'
+        printf "## Technology Stack\n\n"
+        [[ -n "$tech_stack" ]] && printf '```\n%s\n```\n\n' "$tech_stack" || printf '_No data_\n\n'
+        printf "## Exposed Services (non-HTTP)\n\n"
+        [[ -n "$exposed_ports" ]] && printf '```\n%s\n```\n\n' "$exposed_ports" || printf '_None detected_\n\n'
+        [[ -n "$takeover_lines" ]] && printf "## Subdomain Takeovers\n\n\`\`\`\n%s\n\`\`\`\n\n" "$takeover_lines"
+        printf "## Vulnerabilities\n\n"
+        [[ -n "$crit_lines" ]] && printf "### Critical (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$vuln_c" "$crit_lines"
+        [[ -n "$high_lines" ]] && printf "### High (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$vuln_h" "$high_lines"
+        [[ -z "$crit_lines$high_lines" ]] && printf '_No critical or high severity findings_\n\n'
+        [[ -n "$cve_lines" ]]     && printf "## CVEs (Shodan)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$cve_lines"
+        [[ -n "$secrets_lines" ]] && printf "## JS Secrets\n\n\`\`\`\n%s\n\`\`\`\n\n" "$secrets_lines"
+        [[ -n "$cloud_lines" ]]   && printf "## Cloud Assets\n\n\`\`\`\n%s\n\`\`\`\n\n" "$cloud_lines"
+        if [[ -n "$priority_lines" ]]; then
+            printf "## Priority Targets (Hotlist)\n\n"
+            printf "_Score: critical/high findings +10, takeovers +8, JS secrets +6, new assets +2_\n\n"
+            printf '```\n%s\n```\n\n' "$priority_lines"
+        fi
+    } > "$out_md"
+
+    # --- HTML ---
+    _html_pre() {
+        local data="$1"
+        if [[ -n "$data" ]]; then
+            printf '<pre class="code-block">%s</pre>' "$(printf '%s' "$data" | _he)"
+        else
+            printf '<span class="empty">None</span>'
+        fi
+    }
+
+    local stat_tiles=""
+    stat_tiles+='<div class="stat-card"><div class="value">'"$subs_count"'</div><div class="label">Subdomains</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card"><div class="value">'"$webs_count"'</div><div class="label">Live Hosts</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card"><div class="value">'"$ip_count"'</div><div class="label">IPs</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card"><div class="value">'"$port_count"'</div><div class="label">Open Ports</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card"><div class="value">'"$email_count"'</div><div class="label">Emails</div></div>'$'\n'
+    local _cc="" _sc="" _tc="" _vc="" _vh="" _vm=""
+    [[ "${cred_count:-0}"    -gt 0 ]] && _cc=" critical"
+    [[ "${secret_count:-0}"  -gt 0 ]] && _sc=" high"
+    [[ "${takeover_count:-0}" -gt 0 ]] && _tc=" critical"
+    [[ "${vuln_c:-0}"        -gt 0 ]] && _vc=" critical"
+    [[ "${vuln_h:-0}"        -gt 0 ]] && _vh=" high"
+    [[ "${vuln_m:-0}"        -gt 0 ]] && _vm=" medium"
+    stat_tiles+='<div class="stat-card'"$_cc"'"><div class="value">'"$cred_count"'</div><div class="label">Creds Leaked</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card'"$_sc"'"><div class="value">'"$secret_count"'</div><div class="label">JS Secrets</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card'"$_tc"'"><div class="value">'"$takeover_count"'</div><div class="label">Takeovers</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card'"$_vc"'"><div class="value">'"$vuln_c"'</div><div class="label">Critical</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card'"$_vh"'"><div class="value">'"$vuln_h"'</div><div class="label">High</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card'"$_vm"'"><div class="value">'"$vuln_m"'</div><div class="label">Medium</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card"><div class="value">'"$vuln_total"'</div><div class="label">Total Findings</div></div>'$'\n'
+
+    local html_subs=""
+    if [[ -n "$interesting_subs" ]]; then
+        while IFS= read -r sub; do
+            [[ -z "$sub" ]] && continue
+            html_subs+='<span class="tag interesting">'"$(printf '%s' "$sub" | _he)"'</span>'$'\n'
+        done <<< "$interesting_subs"
+    else
+        html_subs='<span class="empty">None identified</span>'
+    fi
+
+    local html_tech=""
+    if [[ -n "$tech_stack" ]]; then
+        while IFS= read -r t; do
+            [[ -z "$t" ]] && continue
+            html_tech+='<span class="tag">'"$(printf '%s' "$t" | _he)"'</span>'$'\n'
+        done <<< "$tech_stack"
+    else
+        html_tech='<span class="empty">No data</span>'
+    fi
+
+    local html_ports=""
+    if [[ -n "$exposed_ports" ]]; then
+        while IFS= read -r p; do
+            [[ -z "$p" ]] && continue
+            html_ports+='<span class="tag service">'"$(printf '%s' "$p" | _he)"'</span>'$'\n'
+        done <<< "$exposed_ports"
+    else
+        html_ports='<span class="empty">None detected</span>'
+    fi
+
+    local html_vulns=""
+    _vuln_block() {
+        local sev="$1" lines="$2" count="$3"
+        [[ -z "$lines" ]] && return
+        html_vulns+='<h3 class="sev-label '"$sev"'">'"${sev^}"' <span class="badge">'"$count"'</span></h3>'$'\n'
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            html_vulns+='<div class="finding '"$sev"'">'"$(printf '%s' "$line" | _he)"'</div>'$'\n'
+        done <<< "$lines"
+    }
+    _vuln_block "critical" "$crit_lines" "$vuln_c"
+    _vuln_block "high" "$high_lines" "$vuln_h"
+    [[ -z "$html_vulns" ]] && html_vulns='<span class="empty">No critical or high severity findings</span>'
+
+    local html_takeover_section=""
+    if [[ -n "$takeover_lines" ]]; then
+        html_takeover_section='<section class="section takeover-alert"><h2>Subdomain Takeovers <span class="badge">'"$takeover_count"'</span></h2>'"$(_html_pre "$takeover_lines")"'</section>'
+    fi
+
+    local domain_he ts_he
+    domain_he=$(printf '%s' "$domain" | _he)
+    ts_he=$(printf '%s' "$ts" | _he)
+
+    cat > "$out_html" <<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attack Map &ndash; ${domain_he}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#f0f2f5;color:#1a1a2e;line-height:1.5}
+.header{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#fff;padding:40px 48px}
+.header h1{font-size:1.75rem;font-weight:700;letter-spacing:-.5px}
+.header p{color:#94a3b8;margin-top:8px;font-size:.85rem}
+.container{max-width:1280px;margin:0 auto;padding:32px 24px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:10px;padding:18px 10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.stat-card .value{font-size:1.75rem;font-weight:700;color:#1a1a2e}
+.stat-card .label{font-size:.67rem;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.stat-card.critical .value{color:#dc2626}
+.stat-card.high .value{color:#ea580c}
+.stat-card.medium .value{color:#ca8a04}
+.section{background:#fff;border-radius:10px;padding:24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.section h2{font-size:.95rem;font-weight:600;color:#1a1a2e;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.badge{background:#f1f5f9;color:#475569;font-size:.7rem;padding:2px 8px;border-radius:20px;font-weight:500}
+.tag-list{display:flex;flex-wrap:wrap;gap:6px}
+.tag{background:#f1f5f9;color:#334155;font-size:.78rem;padding:4px 10px;border-radius:6px;font-family:'SF Mono','Fira Code',monospace}
+.tag.interesting{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+.tag.service{background:#e0f2fe;color:#0c4a6e;border:1px solid #bae6fd}
+.code-block{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 14px;font-family:'SF Mono','Fira Code',monospace;font-size:.78rem;white-space:pre-wrap;word-break:break-all;color:#334155;max-height:420px;overflow-y:auto;margin:0}
+.sev-label{font-size:.85rem;font-weight:600;margin:12px 0 6px;text-transform:capitalize}
+.sev-label.critical{color:#dc2626}
+.sev-label.high{color:#ea580c}
+.finding{padding:8px 12px;border-left:3px solid #e2e8f0;border-radius:0 5px 5px 0;margin-bottom:5px;font-size:.76rem;font-family:monospace;word-break:break-all;background:#f8fafc}
+.finding.critical{border-color:#dc2626;background:#fef2f2}
+.finding.high{border-color:#ea580c;background:#fff7ed}
+.empty{color:#94a3b8;font-size:.85rem;font-style:italic}
+.takeover-alert{border:2px solid #dc2626}
+.takeover-alert h2{color:#dc2626}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:768px){.two-col{grid-template-columns:1fr}.header{padding:28px 24px}}
+@media(prefers-color-scheme:dark){
+  body{background:#0f1117;color:#e2e8f0}
+  .section,.stat-card{background:#1e2330;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .stat-card .value,.section h2{color:#e2e8f0}
+  .tag{background:#2d3748;color:#a0aec0}
+  .tag.interesting{background:#78350f;color:#fde68a;border-color:#92400e}
+  .tag.service{background:#0c4a6e;color:#7dd3fc;border-color:#0369a1}
+  .code-block{background:#0f1117;border-color:#2d3748;color:#a0aec0}
+  .finding{background:#2d3748}
+  .finding.critical{background:#7f1d1d}
+  .finding.high{background:#7c2d12}
+  .badge,.count{background:#2d3748;color:#94a3b8}
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Attack Map &mdash; ${domain_he}</h1>
+  <p>Generated ${ts_he} &nbsp;&middot;&nbsp; reconFTW --map</p>
+</div>
+<div class="container">
+
+<div class="stats-grid">
+${stat_tiles}
+</div>
+
+${html_takeover_section}
+
+<div class="two-col">
+<section class="section">
+  <h2>High-Value Subdomains <span class="badge">${interesting_count}</span></h2>
+  <div class="tag-list">
+${html_subs}
+  </div>
+</section>
+<section class="section">
+  <h2>Technology Stack <span class="badge">${tech_count}</span></h2>
+  <div class="tag-list">
+${html_tech}
+  </div>
+</section>
+</div>
+
+<section class="section">
+  <h2>Exposed Services <span class="badge">non-HTTP</span></h2>
+  <div class="tag-list">
+${html_ports}
+  </div>
+</section>
+
+<section class="section">
+  <h2>Vulnerabilities</h2>
+${html_vulns}
+</section>
+
+<div class="two-col">
+<section class="section">
+  <h2>CVEs (Shodan)</h2>
+$(_html_pre "$cve_lines")
+</section>
+<section class="section">
+  <h2>JS Secrets</h2>
+$(_html_pre "$secrets_lines")
+</section>
+</div>
+
+<div class="two-col">
+<section class="section">
+  <h2>Cloud Assets</h2>
+$(_html_pre "$cloud_lines")
+</section>
+<section class="section">
+  <h2>Priority Targets</h2>
+$(_html_pre "$priority_lines")
+</section>
+</div>
+
+</div>
+</body>
+</html>
+HTML
+
+    [[ -s "$out_md" && -s "$out_html" ]] \
+        && notification "Attack map written to ${domain}/attack-map.{md,html}" good
+}
+
+function attack_map() {
+    start
+
+    _print_section "OSINT"
+    osint
+
+    if [[ $AXIOM == true ]]; then
+        axiom_launch
+        axiom_selected
+    fi
+
+    _print_section "Subdomains"
+    run_module_with_axiom_failover subdomains_full
+    run_module_with_axiom_failover subtakeover
+    remove_big_files
+    run_module_with_axiom_failover s3buckets
+
+    _print_section "Web Detection"
+    run_module_with_axiom_failover webprobe_full
+
+    if [[ "${PARALLEL_MODE:-true}" == "true" ]] && declare -f parallel_funcs &>/dev/null && ! axiom_runtime_enabled; then
+        parallel_funcs "${PAR_WEB_DETECT_GROUP_SIZE:-3}" screenshot cdnprovider portscan favirecon_tech
+    else
+        run_module_with_axiom_failover screenshot
+        run_module_with_axiom_failover cdnprovider
+        run_module_with_axiom_failover portscan
+        favirecon_tech
+    fi
+    geo_info
+    tls_ip_pivots
+    virtualhosts
+    shodan_cves
+
+    _print_section "Web Analysis"
+    run_module_with_axiom_failover waf_checks
+    run_module_with_axiom_failover nuclei_check
+    nuclei_tech_specific
+    run_module_with_axiom_failover graphql_scan
+    run_module_with_axiom_failover fuzz
+    run_module_with_axiom_failover ferox_fuzz
+    run_module_with_axiom_failover iishortname
+    swagger_check
+    run_module_with_axiom_failover urlchecks
+    run_module_with_axiom_failover cariddi_crawl
+    run_module_with_axiom_failover jschecks
+    social_hunter
+    sub_js_extract
+    well_known_pivots
+
+    if [[ "${PARALLEL_MODE:-true}" == "true" ]] && declare -f parallel_funcs &>/dev/null; then
+        parallel_funcs "${PAR_WEB_ANALYSIS_LIGHT_SIZE:-3}" websocket_checks grpc_reflection llm_probe
+    else
+        websocket_checks
+        grpc_reflection
+        llm_probe
+    fi
+    param_discovery
+
+    if [[ $AXIOM == true ]]; then
+        axiom_shutdown
+    fi
+
+    _print_section "Vulnerability Checks"
+    VULNS_GENERAL=true
+    vulns
+
+    _print_section "Finalization"
+    cms_scanner
+    url_gf
+    wordlist_gen
+    wordlist_gen_roboxtractor
+    password_dict
+    url_ext
+    endpoint_aggregator
+
+    build_hotlist
+    generate_attack_map
+
+    end
+}
+
 function report_only_mode() {
     if [[ -z "${domain:-}" ]]; then
         notification "Report-only mode requires -d <domain>" error
@@ -1632,6 +2027,7 @@ function help() {
     printf "   -i in.txt         Includes subdomains list\n"
     printf " \n"
     printf " %bMODE OPTIONS%b\n" "${bblue}" "${reset}"
+    printf "   --map             Map - Full attack surface map: all OSINT, subdomains, web, vulns; generates attack-map.md and attack-map.html\n"
     printf "   -r, --recon       Recon - Performs full recon process (includes nuclei and fuzzing)\n"
     printf "   -s, --subdomains  Subdomains - Performs Subdomain Enumeration, Web probing and check for sub-tko\n"
     printf "   -p, --passive     Passive - Performs only passive steps\n"
