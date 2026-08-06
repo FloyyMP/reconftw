@@ -535,6 +535,14 @@ function run_command() {
     fi
 }
 
+# Detect GNU vs BSD sed once at module load time to avoid a subprocess
+# call on every sed_i invocation (deleteOutScoped loops call sed_i per entry).
+if sed --version >/dev/null 2>&1; then
+    _SED_IS_GNU=true
+else
+    _SED_IS_GNU=false
+fi
+
 # Cross-platform sed_i wrapper
 # Usage: sed_i 's/old/new/g' file.txt
 # Works on both macOS (BSD sed) and Linux (GNU sed)
@@ -544,16 +552,10 @@ function sed_i() {
         return 1
     fi
 
-    local pattern="$1"
-    local file="$2"
-
-    # Check if we're using GNU sed or BSD sed
-    if sed --version >/dev/null 2>&1; then
-        # GNU sed (Linux or installed via brew on macOS)
-        sed -i "$pattern" "$file"
+    if [[ "$_SED_IS_GNU" == "true" ]]; then
+        sed -i "$1" "$2"
     else
-        # BSD sed (default macOS)
-        sed -i '' "$pattern" "$file"
+        sed -i '' "$1" "$2"
     fi
 }
 
