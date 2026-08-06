@@ -1948,9 +1948,9 @@ function urlchecks() {
                                 fi
                             else
                                 if [[ $DEEP == true ]]; then
-                                    run_with_heartbeat_shell "katana normal targets (deep)" "$katana_timeout_cmd 4h katana -silent -list .tmp/katana_targets_normal.txt ${katana_headless_flags} -jc -kf all -c $KATANA_THREADS -d 3 -fs rdn >> .tmp/katana.txt 2>> \"$LOGFILE\""
+                                    run_with_heartbeat_shell "katana normal targets (deep)" "$katana_timeout_cmd ${KATANA_TIMEOUT_DEEP:-3h} katana -silent -list .tmp/katana_targets_normal.txt ${katana_headless_flags} -jc -kf all -c $KATANA_THREADS -d 3 -fs rdn >> .tmp/katana.txt 2>> \"$LOGFILE\""
                                 else
-                                    run_with_heartbeat_shell "katana normal targets" "$katana_timeout_cmd 3h katana -silent -list .tmp/katana_targets_normal.txt ${katana_headless_flags} -jc -kf all -c $KATANA_THREADS -d 2 -fs rdn >> .tmp/katana.txt 2>> \"$LOGFILE\""
+                                    run_with_heartbeat_shell "katana normal targets" "$katana_timeout_cmd ${KATANA_TIMEOUT:-90m} katana -silent -list .tmp/katana_targets_normal.txt ${katana_headless_flags} -jc -kf all -c $KATANA_THREADS -d 2 -fs rdn >> .tmp/katana.txt 2>> \"$LOGFILE\""
                                 fi
                             fi
                         fi
@@ -1968,9 +1968,9 @@ function urlchecks() {
                                 fi
                             else
                                 if [[ $DEEP == true ]]; then
-                                    run_with_heartbeat_shell "katana slow targets (deep)" "$katana_timeout_cmd 4h katana -silent -list .tmp/katana_targets_slow.txt ${katana_headless_flags} -jc -kf all -c $slow_c -d 3 -fs rdn >> .tmp/katana.txt 2>> \"$LOGFILE\""
+                                    run_with_heartbeat_shell "katana slow targets (deep)" "$katana_timeout_cmd ${KATANA_TIMEOUT_DEEP:-3h} katana -silent -list .tmp/katana_targets_slow.txt ${katana_headless_flags} -jc -kf all -c $slow_c -d 3 -fs rdn >> .tmp/katana.txt 2>> \"$LOGFILE\""
                                 else
-                                    run_with_heartbeat_shell "katana slow targets" "$katana_timeout_cmd 3h katana -silent -list .tmp/katana_targets_slow.txt ${katana_headless_flags} -jc -kf all -c $slow_c -d 2 -fs rdn >> .tmp/katana.txt 2>> \"$LOGFILE\""
+                                    run_with_heartbeat_shell "katana slow targets" "$katana_timeout_cmd ${KATANA_TIMEOUT:-90m} katana -silent -list .tmp/katana_targets_slow.txt ${katana_headless_flags} -jc -kf all -c $slow_c -d 2 -fs rdn >> .tmp/katana.txt 2>> \"$LOGFILE\""
                                 fi
                             fi
                         fi
@@ -2910,9 +2910,9 @@ function brokenLinks() {
                     # Use katana for scanning
                     if [[ ! -s ".tmp/katana.txt" ]]; then
                         if [[ $DEEP == true ]]; then
-                            timeout 4h katana -silent -list "webs/webs_all.txt" $katana_legacy_headless -jc -kf all -c "$KATANA_THREADS" -d 3 -o ".tmp/katana.txt" 2>>"$LOGFILE" >/dev/null
+                            timeout "${KATANA_TIMEOUT_DEEP:-3h}" katana -silent -list "webs/webs_all.txt" $katana_legacy_headless -jc -kf all -c "$KATANA_THREADS" -d 3 -o ".tmp/katana.txt" 2>>"$LOGFILE" >/dev/null
                         else
-                            timeout 3h katana -silent -list "webs/webs_all.txt" $katana_legacy_headless -jc -kf all -c "$KATANA_THREADS" -d 2 -o ".tmp/katana.txt" 2>>"$LOGFILE" >/dev/null
+                            timeout "${KATANA_TIMEOUT:-90m}" katana -silent -list "webs/webs_all.txt" $katana_legacy_headless -jc -kf all -c "$KATANA_THREADS" -d 2 -o ".tmp/katana.txt" 2>>"$LOGFILE" >/dev/null
                         fi
                     fi
                     # Remove lines longer than 2048 characters
