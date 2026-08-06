@@ -998,32 +998,37 @@ function recon() {
     else
         _print_section "Web Analysis"
 
-        # Heavy scanning functions run sequentially to avoid overwhelming targets
-        run_module_with_axiom_failover waf_checks
-        run_module_with_axiom_failover nuclei_check
-        nuclei_tech_specific
-        run_module_with_axiom_failover graphql_scan
-        run_module_with_axiom_failover fuzz
-        run_module_with_axiom_failover ferox_fuzz
-        run_module_with_axiom_failover iishortname
-        swagger_check
-        run_module_with_axiom_failover urlchecks
-        run_module_with_axiom_failover cariddi_crawl
-        run_module_with_axiom_failover jschecks
-        social_hunter
-        sub_js_extract
-        well_known_pivots
-
-        # Lightweight functions can run in parallel (minimal target load)
-        if [[ "${PARALLEL_MODE:-true}" == "true" ]] && declare -f parallel_funcs &>/dev/null; then
+        if [[ "${PARALLEL_MODE:-true}" == "true" ]] && declare -f parallel_funcs &>/dev/null && ! axiom_runtime_enabled; then
+            # Wave 1: quick WAF/tech probes (independent, fast)
+            parallel_funcs "${PAR_WEB_ANALYSIS_WAVE1_SIZE:-2}" waf_checks nuclei_tech_specific
+            # Wave 2: full nuclei scan (resource-intensive, gets dedicated access)
+            run_module_with_axiom_failover nuclei_check
+            # Wave 3: medium-load scanners (I/O bound, safe to overlap)
+            parallel_funcs "${PAR_WEB_ANALYSIS_WAVE3_SIZE:-4}" fuzz ferox_fuzz graphql_scan cariddi_crawl
+            # Wave 4: light analysis passes (all independent of each other)
+            parallel_funcs "${PAR_WEB_ANALYSIS_WAVE4_SIZE:-6}" iishortname swagger_check urlchecks jschecks social_hunter sub_js_extract well_known_pivots
+            # Wave 5: minimal-load probes
             parallel_funcs "${PAR_WEB_ANALYSIS_LIGHT_SIZE:-3}" websocket_checks grpc_reflection llm_probe
         else
+            run_module_with_axiom_failover waf_checks
+            run_module_with_axiom_failover nuclei_check
+            nuclei_tech_specific
+            run_module_with_axiom_failover graphql_scan
+            run_module_with_axiom_failover fuzz
+            run_module_with_axiom_failover ferox_fuzz
+            run_module_with_axiom_failover iishortname
+            swagger_check
+            run_module_with_axiom_failover urlchecks
+            run_module_with_axiom_failover cariddi_crawl
+            run_module_with_axiom_failover jschecks
+            social_hunter
+            sub_js_extract
+            well_known_pivots
             websocket_checks
             grpc_reflection
             llm_probe
         fi
 
-        # param_discovery runs locally only (arjun not available in axiom images)
         param_discovery
 
         ui_module_end "Web Analysis" "webs/" "hosts/" "vulns/" "nuclei_output/" "js/" "fuzzing/"
@@ -1409,29 +1414,38 @@ function webs_menu() {
 
     _print_section "Web Analysis"
 
-    run_module_with_axiom_failover waf_checks
-    run_module_with_axiom_failover nuclei_check
-    nuclei_tech_specific
-    run_module_with_axiom_failover graphql_scan
-    run_module_with_axiom_failover fuzz
-    run_module_with_axiom_failover ferox_fuzz
-    cms_scanner
-    run_module_with_axiom_failover iishortname
-    swagger_check
-    run_module_with_axiom_failover urlchecks
-    run_module_with_axiom_failover cariddi_crawl
+    if [[ "${PARALLEL_MODE:-true}" == "true" ]] && declare -f parallel_funcs &>/dev/null && ! axiom_runtime_enabled; then
+        parallel_funcs "${PAR_WEB_ANALYSIS_WAVE1_SIZE:-2}" waf_checks nuclei_tech_specific
+        run_module_with_axiom_failover nuclei_check
+        parallel_funcs "${PAR_WEB_ANALYSIS_WAVE3_SIZE:-4}" fuzz ferox_fuzz graphql_scan cariddi_crawl
+        parallel_funcs "${PAR_WEB_ANALYSIS_WAVE4_SIZE:-6}" iishortname swagger_check urlchecks jschecks social_hunter sub_js_extract well_known_pivots
+        parallel_funcs "${PAR_WEB_ANALYSIS_LIGHT_SIZE:-3}" websocket_checks grpc_reflection llm_probe
+    else
+        run_module_with_axiom_failover waf_checks
+        run_module_with_axiom_failover nuclei_check
+        nuclei_tech_specific
+        run_module_with_axiom_failover graphql_scan
+        run_module_with_axiom_failover fuzz
+        run_module_with_axiom_failover ferox_fuzz
+        run_module_with_axiom_failover iishortname
+        swagger_check
+        run_module_with_axiom_failover urlchecks
+        run_module_with_axiom_failover cariddi_crawl
+        run_module_with_axiom_failover jschecks
+        social_hunter
+        sub_js_extract
+        well_known_pivots
+        websocket_checks
+        grpc_reflection
+        llm_probe
+    fi
     param_discovery
-    run_module_with_axiom_failover jschecks
-    social_hunter
-    sub_js_extract
-    well_known_pivots
-    websocket_checks
+    cms_scanner
     url_gf
     wordlist_gen
     wordlist_gen_roboxtractor
     password_dict
     url_ext
-    grpc_reflection
     endpoint_aggregator
 
     vulns
@@ -1462,12 +1476,22 @@ function zen_menu() {
 
     _print_section "Web Analysis"
 
-    run_module_with_axiom_failover waf_checks
-    run_module_with_axiom_failover nuclei_check
-    run_module_with_axiom_failover graphql_scan
-    run_module_with_axiom_failover fuzz
-    run_module_with_axiom_failover iishortname
-    swagger_check
+    if [[ "${PARALLEL_MODE:-true}" == "true" ]] && declare -f parallel_funcs &>/dev/null && ! axiom_runtime_enabled; then
+        parallel_funcs "${PAR_WEB_ANALYSIS_WAVE1_SIZE:-2}" waf_checks nuclei_tech_specific
+        run_module_with_axiom_failover nuclei_check
+        parallel_funcs "${PAR_WEB_ANALYSIS_WAVE3_SIZE:-4}" fuzz ferox_fuzz graphql_scan cariddi_crawl
+        parallel_funcs "${PAR_WEB_ANALYSIS_WAVE4_SIZE:-6}" iishortname swagger_check urlchecks jschecks social_hunter sub_js_extract well_known_pivots
+    else
+        run_module_with_axiom_failover waf_checks
+        run_module_with_axiom_failover nuclei_check
+        nuclei_tech_specific
+        run_module_with_axiom_failover graphql_scan
+        run_module_with_axiom_failover fuzz
+        run_module_with_axiom_failover iishortname
+        swagger_check
+        run_module_with_axiom_failover urlchecks
+        run_module_with_axiom_failover jschecks
+    fi
     if [[ $AXIOM == true ]]; then
         axiom_shutdown
     fi
@@ -1995,24 +2019,27 @@ function attack_map() {
     shodan_cves
 
     _print_section "Web Analysis"
-    run_module_with_axiom_failover waf_checks
-    run_module_with_axiom_failover nuclei_check
-    nuclei_tech_specific
-    run_module_with_axiom_failover graphql_scan
-    run_module_with_axiom_failover fuzz
-    run_module_with_axiom_failover ferox_fuzz
-    run_module_with_axiom_failover iishortname
-    swagger_check
-    run_module_with_axiom_failover urlchecks
-    run_module_with_axiom_failover cariddi_crawl
-    run_module_with_axiom_failover jschecks
-    social_hunter
-    sub_js_extract
-    well_known_pivots
-
-    if [[ "${PARALLEL_MODE:-true}" == "true" ]] && declare -f parallel_funcs &>/dev/null; then
+    if [[ "${PARALLEL_MODE:-true}" == "true" ]] && declare -f parallel_funcs &>/dev/null && ! axiom_runtime_enabled; then
+        parallel_funcs "${PAR_WEB_ANALYSIS_WAVE1_SIZE:-2}" waf_checks nuclei_tech_specific
+        run_module_with_axiom_failover nuclei_check
+        parallel_funcs "${PAR_WEB_ANALYSIS_WAVE3_SIZE:-4}" fuzz ferox_fuzz graphql_scan cariddi_crawl
+        parallel_funcs "${PAR_WEB_ANALYSIS_WAVE4_SIZE:-6}" iishortname swagger_check urlchecks jschecks social_hunter sub_js_extract well_known_pivots
         parallel_funcs "${PAR_WEB_ANALYSIS_LIGHT_SIZE:-3}" websocket_checks grpc_reflection llm_probe
     else
+        run_module_with_axiom_failover waf_checks
+        run_module_with_axiom_failover nuclei_check
+        nuclei_tech_specific
+        run_module_with_axiom_failover graphql_scan
+        run_module_with_axiom_failover fuzz
+        run_module_with_axiom_failover ferox_fuzz
+        run_module_with_axiom_failover iishortname
+        swagger_check
+        run_module_with_axiom_failover urlchecks
+        run_module_with_axiom_failover cariddi_crawl
+        run_module_with_axiom_failover jschecks
+        social_hunter
+        sub_js_extract
+        well_known_pivots
         websocket_checks
         grpc_reflection
         llm_probe
