@@ -3043,6 +3043,188 @@ function cariddi_crawl() {
 
 }
 
+function nuclei_tech_specific() {
+    ensure_dirs .tmp nuclei_output webs
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } \
+        && [[ ${NUCLEI_TECH_SPECIFIC:-true} == true ]]; then
+        if ! command -v nuclei >/dev/null 2>&1; then
+            skip_notification "disabled"
+            return 0
+        fi
+        if [[ ! -d "${NUCLEI_TEMPLATES_PATH:-}" ]]; then
+            skip_notification "disabled"
+            return 0
+        fi
+
+        start_func "${FUNCNAME[0]}" "Technology-Specific Nuclei Scan"
+
+        : > .tmp/tech_tags_raw.txt
+        local _tech_src=""
+        [[ -s "webs/web_full_info.txt" ]] && _tech_src="webs/web_full_info.txt"
+        [[ -z "$_tech_src" ]] && [[ -s ".tmp/web_full_info.txt" ]] && _tech_src=".tmp/web_full_info.txt"
+
+        if [[ -n "$_tech_src" ]]; then
+            jq -r '.tech[]? // empty | ascii_downcase | split(":")[0] | split(" ")[0]' \
+                "$_tech_src" 2>/dev/null \
+                | sed '/^$/d' | sort -u > .tmp/tech_tags_raw.txt || true
+        fi
+
+        if [[ ! -s ".tmp/tech_tags_raw.txt" ]]; then
+            end_func "No technologies detected; skipping tech-specific scan" "${FUNCNAME[0]}" "SKIP"
+            return
+        fi
+
+        local -a _nuclei_tags=()
+        while IFS= read -r _tech; do
+            case "$_tech" in
+                wordpress|wp-*) _nuclei_tags+=("wordpress") ;;
+                apache*)        _nuclei_tags+=("apache") ;;
+                nginx*)         _nuclei_tags+=("nginx") ;;
+                iis*)           _nuclei_tags+=("iis") ;;
+                drupal*)        _nuclei_tags+=("drupal") ;;
+                joomla*)        _nuclei_tags+=("joomla") ;;
+                laravel*)       _nuclei_tags+=("laravel") ;;
+                spring*)        _nuclei_tags+=("spring") ;;
+                jenkins*)       _nuclei_tags+=("jenkins") ;;
+                gitlab*)        _nuclei_tags+=("gitlab") ;;
+                grafana*)       _nuclei_tags+=("grafana") ;;
+                elasticsearch*) _nuclei_tags+=("elastic") ;;
+                kibana*)        _nuclei_tags+=("kibana") ;;
+                jira*)          _nuclei_tags+=("jira") ;;
+                confluence*)    _nuclei_tags+=("confluence") ;;
+                tomcat*)        _nuclei_tags+=("tomcat") ;;
+                php*)           _nuclei_tags+=("php") ;;
+                node*)          _nuclei_tags+=("nodejs") ;;
+                django*)        _nuclei_tags+=("django") ;;
+                rails*)         _nuclei_tags+=("rails") ;;
+                magento*)       _nuclei_tags+=("magento") ;;
+                shopify*)       _nuclei_tags+=("shopify") ;;
+                varnish*)       _nuclei_tags+=("varnish") ;;
+                strapi*)        _nuclei_tags+=("strapi") ;;
+                nextjs*)        _nuclei_tags+=("nextjs") ;;
+                symfony*)       _nuclei_tags+=("symfony") ;;
+                codeigniter*)   _nuclei_tags+=("codeigniter") ;;
+                opencart*)      _nuclei_tags+=("opencart") ;;
+                weblogic*)      _nuclei_tags+=("weblogic") ;;
+                vmware*)        _nuclei_tags+=("vmware") ;;
+                citrix*)        _nuclei_tags+=("citrix") ;;
+                fortinet*)      _nuclei_tags+=("fortinet") ;;
+                palo-alto*)     _nuclei_tags+=("panos") ;;
+                sonarqube*)     _nuclei_tags+=("sonarqube") ;;
+                minio*)         _nuclei_tags+=("minio") ;;
+                consul*)        _nuclei_tags+=("consul") ;;
+                vault*)         _nuclei_tags+=("vault") ;;
+            esac
+        done < .tmp/tech_tags_raw.txt
+
+        if [[ ${#_nuclei_tags[@]} -eq 0 ]]; then
+            end_func "No mappable tech tags for targeted scan" "${FUNCNAME[0]}" "SKIP"
+            return
+        fi
+
+        local _unique_tags
+        _unique_tags=$(printf '%s\n' "${_nuclei_tags[@]}" | sort -u | paste -sd,)
+        _print_msg INFO "Tech-specific scan tags: ${_unique_tags}"
+
+        ensure_webs_all || true
+        : > .tmp/nuclei_tech_json.txt
+
+        if [[ -s "webs/webs_all.txt" ]]; then
+            # shellcheck disable=SC2086
+            run_with_heartbeat "nuclei (tech:${_unique_tags})" nuclei \
+                -l "webs/webs_all.txt" \
+                -tags "$_unique_tags" \
+                -severity "$NUCLEI_SEVERITY" \
+                -nh -rl "$NUCLEI_RATELIMIT" \
+                -silent -retries 2 \
+                $NUCLEI_EXTRA_ARGS \
+                -t "${NUCLEI_TEMPLATES_PATH}" \
+                -j -o ".tmp/nuclei_tech_json.txt" 2>>"$LOGFILE" || true
+        fi
+
+        local _new_count=0
+        if [[ -s ".tmp/nuclei_tech_json.txt" ]]; then
+            IFS=',' read -ra _sev_arr <<< "$NUCLEI_SEVERITY"
+            for _sev in "${_sev_arr[@]}"; do
+                jq -c "select(.info.severity == \"${_sev}\")" ".tmp/nuclei_tech_json.txt" \
+                    2>/dev/null | anew -q "nuclei_output/${_sev}_json.txt" || true
+            done
+            _new_count=$(wc -l < .tmp/nuclei_tech_json.txt | tr -d ' ')
+            append_assets_from_file finding value ".tmp/nuclei_tech_json.txt"
+        fi
+
+        end_func "${_new_count} tech-specific findings in nuclei_output/" "${FUNCNAME[0]}"
+    else
+        if [[ ${NUCLEI_TECH_SPECIFIC:-true} == false ]]; then
+            skip_notification "disabled"
+        else
+            skip_notification "processed"
+        fi
+    fi
+}
+
+function endpoint_aggregator() {
+    ensure_dirs webs .tmp
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } \
+        && [[ ${ENDPOINT_AGGREGATOR:-true} == true ]]; then
+        start_func "${FUNCNAME[0]}" "High-Value Endpoint Aggregation"
+
+        : > .tmp/all_endpoints_raw.txt
+        local _ep_sources=(
+            "webs/url_extract_nodupes.txt"
+            "webs/url_extract.txt"
+            ".tmp/waymore_urls_subs.txt"
+            ".tmp/gau_output.txt"
+            "webs/ferox_content.txt"
+            "webs/cariddi_endpoints.txt"
+            "webs/webs_all.txt"
+        )
+        local _src
+        for _src in "${_ep_sources[@]}"; do
+            [[ -s "$_src" ]] && cat "$_src" >> .tmp/all_endpoints_raw.txt || true
+        done
+
+        if [[ ! -s ".tmp/all_endpoints_raw.txt" ]]; then
+            end_func "No URL sources available for aggregation" "${FUNCNAME[0]}" "SKIP_NOINPUT"
+            return
+        fi
+
+        : > webs/high_value_endpoints.txt
+
+        grep -aiE "/(admin|panel|dashboard|manager|console|control|management|backend|portal|wp-admin|phpmyadmin|cpanel|webadmin|siteadmin)" \
+            .tmp/all_endpoints_raw.txt 2>/dev/null | sort -u | anew -q webs/high_value_endpoints.txt || true
+
+        grep -aiE "/(api|rest|graphql|v[0-9]+|swagger|openapi|schema|endpoint|rpc)" \
+            .tmp/all_endpoints_raw.txt 2>/dev/null | sort -u | anew -q webs/high_value_endpoints.txt || true
+
+        grep -aiE "\.(env|bak|backup|old|orig|sql|dump|cfg|config|conf|ini|secret|key|pem|p12|pfx|git|svn)([/?#]|$)" \
+            .tmp/all_endpoints_raw.txt 2>/dev/null | sort -u | anew -q webs/high_value_endpoints.txt || true
+
+        grep -aiE "/(login|signin|auth|oauth|sso|token|password|forgot|reset|register|signup|2fa|mfa|verify)" \
+            .tmp/all_endpoints_raw.txt 2>/dev/null | sort -u | anew -q webs/high_value_endpoints.txt || true
+
+        grep -aiE "/(debug|test|dev|development|staging|phpinfo|server-status|server-info|actuator|health|metrics|heapdump|trace|env)" \
+            .tmp/all_endpoints_raw.txt 2>/dev/null | sort -u | anew -q webs/high_value_endpoints.txt || true
+
+        grep -aiE "/(upload|file|files|download|export|import|attachment|storage)" \
+            .tmp/all_endpoints_raw.txt 2>/dev/null | sort -u | anew -q webs/high_value_endpoints.txt || true
+
+        local _ep_count=0
+        [[ -s "webs/high_value_endpoints.txt" ]] && _ep_count=$(wc -l < webs/high_value_endpoints.txt | tr -d ' ')
+        [[ $_ep_count -gt 0 ]] && append_assets_from_file web url webs/high_value_endpoints.txt
+
+        end_func "${_ep_count} high-value endpoints in webs/high_value_endpoints.txt" "${FUNCNAME[0]}"
+    else
+        if [[ ${ENDPOINT_AGGREGATOR:-true} == false ]]; then
+            skip_notification "disabled"
+        else
+            skip_notification "processed"
+        fi
+    fi
+}
+
 function ferox_fuzz() {
 
     if ! ensure_dirs .tmp webs; then return 1; fi
