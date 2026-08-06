@@ -504,6 +504,10 @@ Produces `attack-map.html` and `attack-map.md` summarising a complete target. HT
 - `printf "\r  text\033[K"` (no trailing `\n`) leaves the line in a half-rendered state in the scrollback buffer; raw escape codes appear as literal characters when the user scrolls or selects text. Always use `ui_live_progress_update` for in-place status — it manages `_UI_LIVE_NEEDS_UP` and terminates every frame with `\n`.
 ### Printing static output while `_UI_LIVE_ACTIVE=true` without calling `ui_live_progress_break` first
 - Printing static output directly to stdout while live progress is active leaves the cursor at the wrong position; the next heartbeat `\033[1A` goes to the wrong line and overwrites output with escape codes. Always call `ui_live_progress_break` (which clears the slot and resets `_UI_LIVE_NEEDS_UP=false`) before any `printf` to stdout when `_UI_LIVE_ACTIVE` may be true. `_print_status`, `ui_batch_start`, and `ui_batch_end` all do this correctly.
+### DataForSEO: wrong endpoint causes silent 40400
+- `/v3/dataforseo_labs/google/domain_overview/live` returns 40400 (Not Found) for domain traffic queries. The correct endpoint is `/v3/dataforseo_labs/google/domain_rank_overview/live`. Result data is nested at `.tasks[0].result[0].items[0].metrics`, not `.tasks[0].result[0].metrics`. Without this, a future session adding DataForSEO calls will get silent empty output with no error message.
+### Module functions write relative paths — test harness must `cd` to the output dir
+- All module functions write output to relative paths (e.g. `osint/foo.txt`) because `start()` does `cd "$dir"` before any function runs. A bare `--source-only` test that doesn't `cd "$dir"` will write output to the repo root instead, creating stray dirs. Always `(cd "$dir" && fn)` in test harnesses.
 ## Error Handling
 - ERR trap in `start()` logs function name, line number, and command to `$LOGFILE` and calls `explain_err()` (`modules/modes.sh:140`)
 - Non-zero exit from `parallel_funcs` increments `RECON_OSINT_PARALLEL_FAILURES` and sets `RECON_PARTIAL_RUN=true`
