@@ -765,7 +765,7 @@ function vulns() {
                     return 1
                 fi
             fi
-            parallel_funcs "${PAR_VULNS_GROUP4_SIZE:-3}" webcache spraying brokenLinks fray_checks cors_checks open_redirect dast_passive
+            parallel_funcs "${PAR_VULNS_GROUP4_SIZE:-3}" webcache spraying brokenLinks fray_checks cors_checks open_redirect dast_passive exposed_files http_methods
             local vulns_g4_rc=$?
             if ((vulns_g4_rc > 0)); then
                 if [[ "${CONTINUE_ON_TOOL_ERROR:-true}" == "true" ]]; then
@@ -797,6 +797,8 @@ function vulns() {
             cors_checks
             open_redirect
             dast_passive
+            exposed_files
+            http_methods
             run_module_with_axiom_failover fuzzparams
             run_module_with_axiom_failover nuclei_dast
             4xxbypass
@@ -1667,6 +1669,22 @@ function generate_attack_map() {
         info_disclosure_count=$(count_lines "vulns/info_disclosure.txt")
     fi
 
+    local exposed_files_lines="" exposed_files_count=0
+    local http_methods_lines="" http_methods_count=0
+    local mime_mismatch_lines="" mime_mismatch_count=0
+    if [[ -s "vulns/exposed_files.txt" ]]; then
+        exposed_files_lines=$(head -25 "vulns/exposed_files.txt")
+        exposed_files_count=$(count_lines "vulns/exposed_files.txt")
+    fi
+    if [[ -s "vulns/http_methods.txt" ]]; then
+        http_methods_lines=$(head -20 "vulns/http_methods.txt")
+        http_methods_count=$(count_lines "vulns/http_methods.txt")
+    fi
+    if [[ -s "vulns/mime_mismatch.txt" ]]; then
+        mime_mismatch_lines=$(head -20 "vulns/mime_mismatch.txt")
+        mime_mismatch_count=$(count_lines "vulns/mime_mismatch.txt")
+    fi
+
     # --- Markdown ---
     {
         printf "# Attack Map: %s\n\n_Generated: %s_\n\n---\n\n" "$domain" "$ts"
@@ -1692,6 +1710,9 @@ function generate_attack_map() {
         [[ -n "$missing_headers_lines" ]] && printf "## Missing Security Headers (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$missing_headers_count" "$missing_headers_lines"
         [[ -n "$cookie_issues_lines" ]]   && printf "## Cookie Flag Issues (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$cookie_issues_count" "$cookie_issues_lines"
         [[ -n "$info_disclosure_lines" ]] && printf "## Information Disclosure (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$info_disclosure_count" "$info_disclosure_lines"
+        [[ -n "$exposed_files_lines" ]]   && printf "## Exposed Sensitive Files (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$exposed_files_count" "$exposed_files_lines"
+        [[ -n "$http_methods_lines" ]]    && printf "## Dangerous HTTP Methods (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$http_methods_count" "$http_methods_lines"
+        [[ -n "$mime_mismatch_lines" ]]   && printf "## MIME Type Mismatches (%s)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$mime_mismatch_count" "$mime_mismatch_lines"
         [[ -n "$cve_lines" ]]     && printf "## CVEs (Shodan)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$cve_lines"
         [[ -n "$secrets_lines" ]] && printf "## JS Secrets\n\n\`\`\`\n%s\n\`\`\`\n\n" "$secrets_lines"
         [[ -n "$cloud_lines" ]]   && printf "## Cloud Assets\n\n\`\`\`\n%s\n\`\`\`\n\n" "$cloud_lines"
@@ -1739,6 +1760,11 @@ function generate_attack_map() {
     stat_tiles+='<div class="stat-card'"$_mh"'"><div class="value">'"${missing_headers_count:-0}"'</div><div class="label">Missing Headers</div></div>'$'\n'
     stat_tiles+='<div class="stat-card'"$_ci"'"><div class="value">'"${cookie_issues_count:-0}"'</div><div class="label">Cookie Issues</div></div>'$'\n'
     stat_tiles+='<div class="stat-card'"$_id"'"><div class="value">'"${info_disclosure_count:-0}"'</div><div class="label">Info Disclosure</div></div>'$'\n'
+    local _ef="" _hm=""
+    [[ "${exposed_files_count:-0}" -gt 0 ]] && _ef=" critical"
+    [[ "${http_methods_count:-0}"  -gt 0 ]] && _hm=" high"
+    stat_tiles+='<div class="stat-card'"$_ef"'"><div class="value">'"${exposed_files_count:-0}"'</div><div class="label">Exposed Files</div></div>'$'\n'
+    stat_tiles+='<div class="stat-card'"$_hm"'"><div class="value">'"${http_methods_count:-0}"'</div><div class="label">HTTP Methods</div></div>'$'\n'
 
     local html_subs=""
     if [[ -n "$interesting_subs" ]]; then
@@ -1797,6 +1823,14 @@ function generate_attack_map() {
         [[ -n "$cookie_issues_lines" ]]   && _s+='<section class="section"><h2>Cookie Flag Issues <span class="badge">'"$cookie_issues_count"'</span></h2>'"$(_html_pre "$cookie_issues_lines")"'</section>'
         [[ -n "$info_disclosure_lines" ]] && _s+='<section class="section"><h2>Information Disclosure <span class="badge">'"$info_disclosure_count"'</span></h2>'"$(_html_pre "$info_disclosure_lines")"'</section>'
         html_dast_passive_group='<div class="two-col">'"$_s"'</div>'
+    fi
+    local html_exposed_group=""
+    if [[ -n "$exposed_files_lines" || -n "$http_methods_lines" || -n "$mime_mismatch_lines" ]]; then
+        _s=""
+        [[ -n "$exposed_files_lines" ]]  && _s+='<section class="section"><h2>Exposed Sensitive Files <span class="badge">'"$exposed_files_count"'</span></h2>'"$(_html_pre "$exposed_files_lines")"'</section>'
+        [[ -n "$http_methods_lines" ]]   && _s+='<section class="section"><h2>Dangerous HTTP Methods <span class="badge">'"$http_methods_count"'</span></h2>'"$(_html_pre "$http_methods_lines")"'</section>'
+        [[ -n "$mime_mismatch_lines" ]]  && _s+='<section class="section"><h2>MIME Type Mismatches <span class="badge">'"$mime_mismatch_count"'</span></h2>'"$(_html_pre "$mime_mismatch_lines")"'</section>'
+        html_exposed_group='<div class="two-col">'"$_s"'</div>'
     fi
     if [[ -n "$cve_lines" || -n "$secrets_lines" ]]; then
         _s=""
@@ -1911,6 +1945,8 @@ ${html_vulns}
 </section>
 
 ${html_dast_passive_group}
+
+${html_exposed_group}
 
 ${html_cve_secrets_group}
 

@@ -1411,15 +1411,176 @@ function dast_passive() {
             ' "$probe_json" 2>/dev/null | anew -q "vulns/info_disclosure.txt" || true
         done
 
+        # --- MIME type mismatches ---
+        : >"vulns/mime_mismatch.txt"
+        jq -r '
+            .url as $u |
+            (.response_headers["content-type"] // "") as $ct |
+            ($u | split("?")[0] | split(".") | .[-1] | ascii_downcase) as $ext |
+            if   (($ext == "json") and ($ct | test("text/html")))       then "\($u)  [MIME mismatch: .json served as text/html]"
+            elif (($ext == "xml")  and ($ct | test("text/html")))       then "\($u)  [MIME mismatch: .xml served as text/html]"
+            elif (($ext == "js")   and ($ct | test("text/html")))       then "\($u)  [MIME mismatch: .js served as text/html]"
+            elif (($ext == "css")  and ($ct | test("text/html")))       then "\($u)  [MIME mismatch: .css served as text/html]"
+            elif (($ct | test("application/octet-stream")) and ($ext | test("php|asp|aspx|jsp|py|rb|cfm")))
+                then "\($u)  [Suspicious octet-stream for script file]"
+            else empty end
+        ' "$probe_json" 2>/dev/null | anew -q "vulns/mime_mismatch.txt" || true
+
         local total=0
         [[ -s "vulns/missing_headers.txt" ]] && total=$((total + $(wc -l < "vulns/missing_headers.txt" | tr -d ' ')))
         [[ -s "vulns/cookie_issues.txt" ]]   && total=$((total + $(wc -l < "vulns/cookie_issues.txt"   | tr -d ' ')))
         [[ -s "vulns/info_disclosure.txt" ]] && total=$((total + $(wc -l < "vulns/info_disclosure.txt"  | tr -d ' ')))
-        [[ $total -gt 0 ]] && notification "${total} passive DAST findings (headers/cookies/disclosure)" info
+        [[ -s "vulns/mime_mismatch.txt" ]]   && total=$((total + $(wc -l < "vulns/mime_mismatch.txt"    | tr -d ' ')))
+        [[ $total -gt 0 ]] && notification "${total} passive DAST findings (headers/cookies/disclosure/mime)" info
 
-        end_func "Results: vulns/{missing_headers,cookie_issues,info_disclosure}.txt" "${FUNCNAME[0]}"
+        end_func "Results: vulns/{missing_headers,cookie_issues,info_disclosure,mime_mismatch}.txt" "${FUNCNAME[0]}"
     else
         if [[ ${DAST_PASSIVE:-true} == false ]]; then
+            skip_notification "disabled"
+        elif [[ ! -s "webs/webs_all.txt" ]]; then
+            skip_notification "noinput"
+        else
+            skip_notification "processed"
+        fi
+    fi
+
+}
+
+function exposed_files() {
+
+    if ! ensure_dirs .tmp vulns; then return 1; fi
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } \
+        && [[ ${EXPOSED_FILES:-true} == true ]] && [[ -s "webs/webs_all.txt" ]]; then
+
+        start_func "${FUNCNAME[0]}" "Exposed Backup & Sensitive File Detection"
+
+        local candidates=".tmp/exposed_files_candidates.txt"
+        : >"$candidates"
+
+        # Backup variants of crawled script/config URLs
+        if [[ -s "webs/url_extract.txt" ]]; then
+            local -a bak_sfx=(.bak .old .orig .backup .copy .tmp .swp .save .bkp ~)
+            while IFS= read -r url; do
+                [[ -z "$url" ]] && continue
+                local path="${url%%[?#]*}"
+                for sfx in "${bak_sfx[@]}"; do
+                    printf '%s%s\n' "$path" "$sfx"
+                done
+            done < <(grep -iE '\.(php|asp|aspx|jsp|cfm|rb|py|conf|config|cfg|ini|xml|env)([?#].*)?$' \
+                "webs/url_extract.txt" | head -${EXPOSED_FILES_URL_LIMIT:-400}) \
+                | anew -q "$candidates" || true
+        fi
+
+        # Known sensitive paths probed against every live host
+        local -a sensitive=(
+            '/.env' '/.env.bak' '/.env.local' '/.env.production' '/.env.dev' '/.env.staging'
+            '/backup.zip' '/backup.tar.gz' '/backup.sql' '/db.sql' '/dump.sql' '/database.sql' '/data.sql'
+            '/.git/config' '/.git/HEAD' '/.gitignore'
+            '/config.php.bak' '/wp-config.php.bak' '/wp-config.php.old' '/wp-config.php~'
+            '/web.config.bak' '/web.config.old' '/app.config.bak'
+            '/credentials.json' '/secrets.json' '/settings.json' '/config.json' '/config.yaml' '/config.yml'
+            '/id_rsa' '/id_rsa.pub' '/.ssh/id_rsa' '/server.key' '/private.key' '/privkey.pem'
+            '/phpinfo.php' '/info.php' '/test.php' '/debug.php' '/status.php' '/adminer.php'
+            '/logs/access.log' '/logs/error.log' '/log/access.log' '/log/error.log' '/error.log'
+            '/composer.json' '/package.json' '/yarn.lock' '/Gemfile' '/requirements.txt' '/Pipfile'
+            '/docker-compose.yml' '/docker-compose.yaml' '/Dockerfile' '/.dockerignore'
+            '/robots.txt.bak' '/sitemap.xml.bak'
+            '/.htaccess' '/.htpasswd' '/web.config' '/crossdomain.xml' '/clientaccesspolicy.xml'
+            '/api/swagger.json' '/api/openapi.json' '/swagger.json' '/openapi.yaml'
+            '/server-status' '/server-info' '/.well-known/security.txt'
+        )
+        while IFS= read -r host; do
+            [[ -z "$host" ]] && continue
+            local base="${host%/}"
+            for p in "${sensitive[@]}"; do
+                printf '%s%s\n' "$base" "$p"
+            done
+        done < "webs/webs_all.txt" | anew -q "$candidates" || true
+
+        local cand_count
+        cand_count=$(wc -l < "$candidates" | tr -d ' ')
+        _print_msg INFO "Probing ${cand_count} candidate URLs for exposed files"
+
+        run_command httpx -l "$candidates" -silent \
+            -mc 200,206 \
+            -H "${HEADER}" \
+            -rl "${HTTPX_RATELIMIT:-150}" \
+            -timeout 10 \
+            -no-color \
+            -content-length \
+            -filter-length 0 \
+            2>>"$LOGFILE" | anew -q "vulns/exposed_files.txt" || true
+
+        if [[ -s "vulns/exposed_files.txt" ]]; then
+            NUMOFLINES=$(wc -l < "vulns/exposed_files.txt" | tr -d ' ')
+            notification "${NUMOFLINES} accessible sensitive/backup files found" info
+        fi
+
+        end_func "Results are saved in vulns/exposed_files.txt" "${FUNCNAME[0]}"
+    else
+        if [[ ${EXPOSED_FILES:-true} == false ]]; then
+            skip_notification "disabled"
+        elif [[ ! -s "webs/webs_all.txt" ]]; then
+            skip_notification "noinput"
+        else
+            skip_notification "processed"
+        fi
+    fi
+
+}
+
+function http_methods() {
+
+    if ! ensure_dirs .tmp vulns; then return 1; fi
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } \
+        && [[ ${HTTP_METHODS:-true} == true ]] && [[ -s "webs/webs_all.txt" ]]; then
+
+        start_func "${FUNCNAME[0]}" "Dangerous HTTP Methods Detection"
+
+        : >"vulns/http_methods.txt"
+
+        # OPTIONS probe — parse Allow/Access-Control-Allow-Methods for dangerous verbs
+        run_command httpx -l "webs/webs_all.txt" -silent \
+            -x OPTIONS \
+            -H "${HEADER}" \
+            -rl "${HTTPX_RATELIMIT:-150}" \
+            -timeout 10 \
+            -no-color \
+            -json \
+            2>>"$LOGFILE" >".tmp/http_methods_options.jsonl" || true
+
+        if [[ -s ".tmp/http_methods_options.jsonl" ]]; then
+            jq -r '
+                .url as $u |
+                ((.response_headers["allow"] // "") + " " + (.response_headers["public"] // "") +
+                 " " + (.response_headers["access-control-allow-methods"] // "")) |
+                select(test("(?i)(PUT|DELETE|TRACE|CONNECT)")) |
+                "\($u)  [Dangerous methods in Allow: " + (. | ltrimstr(" ") | rtrimstr(" ")) + "]"
+            ' ".tmp/http_methods_options.jsonl" 2>/dev/null | anew -q "vulns/http_methods.txt" || true
+        fi
+
+        # TRACE probe — direct confirmation (XST attack vector)
+        run_command httpx -l "webs/webs_all.txt" -silent \
+            -x TRACE \
+            -mc 200 \
+            -H "${HEADER}" \
+            -rl "${HTTPX_RATELIMIT:-150}" \
+            -timeout 10 \
+            -no-color \
+            2>>"$LOGFILE" \
+            | sed 's/$/ [TRACE method enabled — XST attack vector]/' \
+            | anew -q "vulns/http_methods.txt" || true
+
+        if [[ -s "vulns/http_methods.txt" ]]; then
+            NUMOFLINES=$(wc -l < "vulns/http_methods.txt" | tr -d ' ')
+            notification "${NUMOFLINES} dangerous HTTP method findings" info
+        fi
+
+        end_func "Results are saved in vulns/http_methods.txt" "${FUNCNAME[0]}"
+    else
+        if [[ ${HTTP_METHODS:-true} == false ]]; then
             skip_notification "disabled"
         elif [[ ! -s "webs/webs_all.txt" ]]; then
             skip_notification "noinput"
