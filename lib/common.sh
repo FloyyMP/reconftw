@@ -125,7 +125,7 @@ anew_q_safe() {
 count_lines() {
     local file="$1"
     if [[ -s "$file" ]]; then
-        sed '/^$/d' "$file" | wc -l | tr -d ' '
+        grep -c . "$file" 2>/dev/null || echo 0
     else
         echo 0
     fi
