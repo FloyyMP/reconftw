@@ -927,14 +927,14 @@ function dataforseo_traffic() {
 
         register_secret "$DATAFORSEO_PASSWORD"
 
-        local payload result organic paid keywords rank
+        local payload result metrics organic paid keywords traffic_value
         payload="[{\"target\":\"${domain}\",\"location_code\":2840,\"language_code\":\"en\"}]"
 
         result=$(run_command curl -s -f \
             -u "${DATAFORSEO_LOGIN}:${DATAFORSEO_PASSWORD}" \
             -H "Content-Type: application/json" \
             -d "$payload" \
-            "https://api.dataforseo.com/v3/dataforseo_labs/google/domain_overview/live" \
+            "https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live" \
             2>>"$LOGFILE") || true
 
         if [[ -z "$result" ]] || ! printf '%s' "$result" | jq -e '.status_code == 20000' >/dev/null 2>&1; then
@@ -945,17 +945,18 @@ function dataforseo_traffic() {
 
         printf '%s' "$result" | jq '.' > osint/dataforseo_traffic.json
 
-        organic=$(printf '%s' "$result" | jq -r '.tasks[0].result[0].metrics.organic.etv // 0' 2>/dev/null)
-        paid=$(printf '%s' "$result" | jq -r '.tasks[0].result[0].metrics.paid.etv // 0' 2>/dev/null)
-        keywords=$(printf '%s' "$result" | jq -r '.tasks[0].result[0].metrics.organic.count // 0' 2>/dev/null)
-        rank=$(printf '%s' "$result" | jq -r '.tasks[0].result[0].domain_rank // "unknown"' 2>/dev/null)
+        metrics='.tasks[0].result[0].items[0].metrics'
+        organic=$(printf '%s' "$result" | jq -r "${metrics}.organic.etv // 0" 2>/dev/null)
+        paid=$(printf '%s' "$result" | jq -r "${metrics}.paid.etv // 0" 2>/dev/null)
+        keywords=$(printf '%s' "$result" | jq -r "${metrics}.organic.count // 0" 2>/dev/null)
+        traffic_value=$(printf '%s' "$result" | jq -r "${metrics}.organic.estimated_paid_traffic_cost // 0" 2>/dev/null)
 
         {
             printf 'domain: %s\n' "$domain"
             printf 'organic_traffic_est: %s/mo\n' "$organic"
             printf 'paid_traffic_est: %s/mo\n' "$paid"
             printf 'organic_keywords: %s\n' "$keywords"
-            printf 'domain_rank: %s\n' "$rank"
+            printf 'traffic_value_est: $%s\n' "$traffic_value"
         } > osint/dataforseo_traffic.txt
 
         end_func "Traffic: ~${organic}/mo organic, ${keywords} keywords → osint/dataforseo_traffic.txt" "${FUNCNAME[0]}"
