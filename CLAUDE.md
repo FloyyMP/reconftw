@@ -49,125 +49,25 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - pre-commit hooks defined in `.pre-commit-config.yaml`
 - semgrep: run locally with `semgrep --config=auto` (no CI workflow configured)
 ## Key Dependencies
-### Go Tools (installed via `go install @latest`)
-- `subfinder` (projectdiscovery/subfinder) — passive multi-source subdomain discovery
-- `github-subdomains` (gwen001/github-subdomains) — GitHub-based subdomain search
-- `gitlab-subdomains` (gwen001/gitlab-subdomains) — GitLab-based subdomain search
-- `dnstake` (pwnesia/dnstake) — subdomain takeover detection
-- `puredns` (d3mondev/puredns) — mass DNS resolution with wildcard filtering
-- `dnsx` (projectdiscovery/dnsx) — DNS toolkit
-- `massdns` (blechschmidt/massdns) — via repo clone + build
-- `dsieve` (trickest/dsieve) — subdomain filtering
-- `enumerepo` (trickest/enumerepo) — GitHub org repo enumeration
-- `gotator` (Josue87/gotator) — subdomain permutations
-- `analyticsrelationships` (Josue87/analyticsrelationships) — Google Analytics pivoting
-- `roboxtractor` (Josue87/roboxtractor) — robots.txt extractor
-- `crt` (cemulus/crt) — crt.sh search
-- `asnmap` (projectdiscovery/asnmap) — ASN-to-CIDR mapping
-- `mapcidr` (projectdiscovery/mapcidr) — CIDR manipulation
-- `smap` (s0md3v/smap) — passive Shodan-powered port scan
-- `tlsx` (projectdiscovery/tlsx) — TLS certificate harvesting
-- `hakip2host` (hakluke/hakip2host) — reverse IP lookup
-- `cdncheck` (projectdiscovery/cdncheck) — CDN/WAF IP classification
-- `hakoriginfinder` (hakluke/hakoriginfinder) — origin IP discovery behind CDN
-- `inscope` (tomnomnom/hacks/inscope) — scope filtering
-- `csprecon` (edoardottt/csprecon) — CSP-based subdomain discovery
-- `favirecon` (edoardottt/favirecon) — favicon-based tech recon
-- `httpx` (projectdiscovery/httpx) — multi-probe HTTP toolkit
-- `katana` (projectdiscovery/katana) — web crawler
-- `ffuf` (ffuf/ffuf) — web fuzzer
-- `subjs` (lc/subjs) — JavaScript URL extractor
-- `Gxss` (KathanP19/Gxss) — reflected XSS param finder
-- `jsluice` (BishopFox/jsluice) — JS secret/URL extractor
-- `sourcemapper` (denandz/sourcemapper) — JS source map extractor
-- `mantra` (brosck/mantra) — JS/secret scanner
-- `urlfinder` (projectdiscovery/urlfinder) — URL discovery
-- `xnLinkFinder` (xnl-h4ck3r/xnLinkFinder) — via uv
-- `nmapurls` (sdcampbell/nmapurls) — URL extraction from Nmap XML
-- `naabu` (projectdiscovery/naabu) — fast port scanner
-- `VhostFinder` (wdahlenburg/VhostFinder) — virtual host discovery
-- `shortscan` (bitquark/shortscan) — IIS short filename scanner
-- `nuclei` (projectdiscovery/nuclei) — template-based scanner
-- `dalfox` (hahwul/dalfox) — XSS scanner
-- `crlfuzz` (dwisiswant0/crlfuzz) — CRLF injection scanner
-- `Web-Cache-Vulnerability-Scanner` (Hackmanit) — web cache poisoning
-- `TInjA` (Hackmanit/TInjA) — SSTI scanner
-- `toxicache` (xhzeem/toxicache) — web cache poisoning
-- `second-order` (mhmdiaa/second-order) — broken link/second-order injection
-- `s3scanner` (sa7mon/s3scanner) — S3/GCS/Azure Blob misconfiguration
-- `misconfig-mapper` (intigriti/misconfig-mapper) — third-party misconfiguration
-- `sj` (BishopFox/sj) — Swagger/OpenAPI analysis
-- `grpcurl` (fullstorydev/grpcurl) — gRPC reflection scanner
-- `nerva` (praetorian-inc/nerva) — service fingerprinting
-- `brutus` (praetorian-inc/brutus) — credential spraying
-- `julius` (praetorian-inc/julius) — LLM endpoint probe
-- `titus` (praetorian-inc/titus) — secrets engine
-- `notify` (projectdiscovery/notify) — multi-channel notifications
-- `interactsh-client` (projectdiscovery/interactsh) — OOB callback server
-- `gf` (tomnomnom/gf) — URL pattern grep
-- `anew` (tomnomnom/anew) — append new lines only
-- `unfurl` (tomnomnom/unfurl) — URL parser
-- `qsreplace` (tomnomnom/qsreplace) — querystring replacer
-- `gitdorks_go` (damit5/gitdorks_go) — GitHub dork search
-- `github-endpoints` (gwen001/github-endpoints) — GitHub endpoint discovery
-- `cent` (xm1k3/cent) — nuclei template manager
-- `trufflehog` (trufflesecurity/trufflehog) — secrets scanner (built via `go build` from cloned repo; `go install` is blocked by replace directives in its go.mod)
-- `brutespray` (x90skysn3k/brutespray) — service credential spraying
-### Python Tools (installed via `uv tool install`)
-- `dnsvalidator` (vortexau/dnsvalidator) — DNS resolver validation
-- `interlace` (pry0cc/interlace) — parallel command runner
-- `wafw00f` (EnableSecurity/wafw00f) — WAF fingerprinting
-- `commix` (commixproject/commix) — command injection scanner
-- `waymore` (xnl-h4ck3r/waymore) — passive URL collection
-- `urless` (xnl-h4ck3r/urless) — URL deduplication
-- `ghauri` (r0oth3x49/ghauri) — SQLi scanner (optional)
-- `xnLinkFinder` (xnl-h4ck3r/xnLinkFinder) — deep link finder
-- `xnldorker` (xnl-h4ck3r/xnldorker) — Google dorker
-- `porch-pirate` (MandConsultingGroup/porch-pirate) — Postman API leaks
-- `p1radup` (iambouali/p1radup) — URL deduplication
-- `subwiz` (hadriansecurity/subwiz) — ML-based subdomain prediction
-- `arjun` (s0md3v/Arjun) — parameter discovery
-- `gqlspection` (doyensec/GQLSpection) — GraphQL deep introspection
-- `postleaksNg` (six2dez/postleaksNG) — Postman public leak search
-- `cewler` (roys/cewler) — web wordlist generator
-- `fray` (dalisecurity/fray) — WAF-aware payload testing (PyPI)
-### Repo-Clone Tools with wrapper scripts (Python venvs + shell wrapper in `$GOPATH/bin/`)
-- `corsy` (s0md3v/Corsy) — CORS misconfiguration scanner (not a proper Python package; cloned to `~/Tools/corsy`, venv install, wrapper binary created)
-- `jwt_tool` (ticarpi/jwt_tool) — JWT vulnerability analysis (same pattern as corsy)
+### Go Tools (via `go install @latest`)
+`subfinder`, `github-subdomains`, `gitlab-subdomains`, `dnstake`, `puredns`, `dnsx`, `massdns` (repo clone+build), `dsieve`, `enumerepo`, `gotator`, `analyticsrelationships`, `roboxtractor`, `crt`, `asnmap`, `mapcidr`, `smap`, `tlsx`, `hakip2host`, `cdncheck`, `hakoriginfinder`, `inscope`, `csprecon`, `favirecon`, `httpx`, `katana`, `ffuf`, `subjs`, `Gxss`, `jsluice`, `sourcemapper`, `mantra`, `urlfinder`, `xnLinkFinder`, `nmapurls`, `naabu`, `VhostFinder`, `shortscan`, `nuclei`, `dalfox`, `crlfuzz`, `Web-Cache-Vulnerability-Scanner`, `TInjA`, `toxicache`, `second-order`, `s3scanner`, `misconfig-mapper`, `sj`, `grpcurl`, `nerva`, `brutus`, `julius`, `titus`, `notify`, `interactsh-client`, `gf`, `anew`, `unfurl`, `qsreplace`, `gitdorks_go`, `github-endpoints`, `cent`, `brutespray`
+- `trufflehog` — `go build` from cloned repo; `go install` blocked by replace directives in go.mod
+### Python Tools (via `uv tool install`)
+`dnsvalidator`, `interlace`, `wafw00f`, `commix`, `waymore`, `urless`, `ghauri`, `xnLinkFinder`, `xnldorker`, `porch-pirate`, `p1radup`, `subwiz`, `arjun`, `gqlspection`, `postleaksNg`, `cewler`, `fray`
+### Repo-Clone Tools (Python venvs + `$GOPATH/bin/` wrapper)
+`corsy` (~/Tools/corsy), `jwt_tool` — not proper Python packages; cloned + venv + wrapper binary
 ### Repo-Clone Tools (Python venvs, run via `venv/bin/python3`)
-- `dorks_hunter` (six2dez/dorks_hunter) — Google dork automation
-- `CMSeeK` (Tuhinshubhra/CMSeeK) — CMS fingerprinting
-- `cloud_enum` (initstring/cloud_enum) — AWS/GCP/Azure bucket enumeration (uses `pyproject.toml`, not `requirements.txt`; install via `uv pip install .`)
-- `EmailHarvester` (maldevel/EmailHarvester) — email harvesting
-- `SwaggerSpy` (UndeadSec/SwaggerSpy) — Swagger endpoint leak detection
-- `LeakSearch` (JoelGMSec/LeakSearch) — credential leak search
-- `Spoofy` (MattKeeley/Spoofy) — email spoofing check
-- `msftrecon` (Arcanum-Sec/msftrecon) — Microsoft tenant recon
-- `Scopify` (Arcanum-Sec/Scopify) — scope management
-- `regulator` (cramppet/regulator) — regex-based subdomain permutations
-- `SSTImap` (vladko312/SSTImap) — SSTI scanner (alternative engine)
-- `gato` (praetorian-inc/gato) — GitHub Actions audit
+`dorks_hunter`, `CMSeeK`, `EmailHarvester`, `SwaggerSpy`, `LeakSearch`, `Spoofy`, `msftrecon`, `Scopify`, `regulator`, `SSTImap`, `gato`
+- `cloud_enum` — uses `pyproject.toml` (not `requirements.txt`); install via `uv pip install .`
 ### Repo-Clone Tools (Go build)
-- `ghleaks` (dinosn/ghleaks) — GitHub-wide secret search
-- `nomore403` (devploit/nomore403) — 403 bypass
-- `ffufPostprocessing` (Damian89/ffufPostprocessing) — ffuf result analysis
-- `JSA` (w9w/JSA) — JS analysis
-- `ultimate-nmap-parser` (shifty0g/ultimate-nmap-parser) — Nmap XML parser
-### System-Level Tools (apt/brew/yum)
-- `nmap` — active port scanning
-- `massdns` — DNS resolver (also cloned + built from source)
-- `jq` — JSON processing throughout all modules
-- `exiftool` (perl-Image-ExifTool) — metadata extraction
-- `whois` — domain registration lookup
-- `sqlmap` — SQL injection (system or via repo clone)
-- `testssl.sh` (testssl/testssl.sh) — TLS/SSL misconfiguration testing
-- `medusa` — credential brute-force (system install)
-- `shodan` CLI — installed via `pip install shodan --break-system-packages` (uv install broken by missing `pkg_resources`)
-### Prebuilt Binary Tools (downloaded from GitHub Releases)
-- `noseyparker` (praetorian-inc/noseyparker) — secrets scanner; no Go module or PyPI package, installed as prebuilt binary (x86_64 + arm64 supported)
-### Rust Tools
-- `smugglex` (Cargo) — HTTP request smuggling detection
-- Rustup installed from `https://sh.rustup.rs`
+`ghleaks`, `nomore403`, `ffufPostprocessing`, `JSA`, `ultimate-nmap-parser`
+### System-Level (apt/brew/yum)
+`nmap`, `massdns`, `jq`, `exiftool`, `whois`, `sqlmap`, `testssl.sh`, `medusa`
+- `shodan` CLI — `pip install shodan --break-system-packages` (uv broken by missing `pkg_resources`)
+### Prebuilt Binary (GitHub Releases)
+`noseyparker` (praetorian-inc/noseyparker) — x86_64 + arm64; no Go module or PyPI package
+### Rust (Cargo)
+`smugglex`; Rustup from `https://sh.rustup.rs`
 ## Configuration
 - `reconftw.cfg` — sourced after CLI parsing; all feature flags, rate limits, timeouts, wordlist paths, API keys, thread counts
 - `secrets.cfg` (gitignored, auto-sourced) — API keys and tokens separated from main config
