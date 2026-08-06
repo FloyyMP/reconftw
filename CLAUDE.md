@@ -19,6 +19,48 @@ reconFTW is a comprehensive bash-based reconnaissance automation framework used 
 - **CI budget**: Integration-full is weekly cron — Unit + smoke are per-push; adding heavy integration tests must respect this split.
 <!-- GSD:project-end -->
 
+## Commands
+
+### Testing
+```bash
+make test                    # unit tests (run on every push)
+make test-unit               # same as above
+make test-integration-smoke  # smoke integration (run on every push)
+make test-integration-full   # full integration (weekly CI)
+make test-security           # injection + secret redaction tests
+make test-all                # all suites
+make test-release-gate       # bash -n syntax check + unit + smoke
+```
+
+### Lint / Format
+```bash
+make lint   # shellcheck -S error on reconftw.sh modules/*.sh lib/*.sh install.sh
+make fmt    # shfmt -w -i 4 -bn -ci on all .sh files
+```
+
+### Health / Dry-run
+```bash
+./reconftw.sh --health-check                  # verify all tools are present
+./reconftw.sh --dry-run -d example.com -r     # preview commands without executing
+```
+
+### Typical Invocations
+```bash
+./reconftw.sh -d example.com -r               # full recon
+./reconftw.sh -d example.com -s               # subdomains only
+./reconftw.sh -d example.com -p               # passive only
+./reconftw.sh -d example.com --map            # full attack surface map
+./reconftw.sh -l targets.txt -w               # web checks from a host list
+./reconftw.sh -d example.com -r --deep        # slower, deeper scan
+./reconftw.sh -d example.com -r -f my.cfg     # alternate config file
+```
+
+### Secrets Setup
+```bash
+cp secrets.cfg.example secrets.cfg  # fill in API keys; auto-sourced by reconftw.sh
+# Env vars (SHODAN_API_KEY, PDCP_API_KEY, etc.) override secrets.cfg values
+```
+
 <!-- GSD:stack-start source:codebase/STACK.md -->
 ## Technology Stack
 
@@ -256,31 +298,6 @@ CLI (reconftw.sh)
 - File-based checkpointing: `called_fn_dir/.funcname` sentinel files prevent re-running completed functions across invocations
 - CLI-over-config: `reconftw.cfg` provides defaults; CLI flags set `CLI_*` variables that are re-applied after config sourcing to guarantee they cannot be overwritten
 - All external tool invocations go through `run_command()` which handles dry-run mode, adaptive rate limiting, axiom dispatch, and debug logging
-## Layers
-- Purpose: Bootstrap, macOS re-exec, module loading, getopt CLI parsing, config sourcing, CLI override re-application, mode dispatch
-- Location: `reconftw.sh`
-- Contains: `normalize_vps_count_args()`, the main `while/case` getopt loop, the config `source` sequence, CLI override if-blocks, the final `case $opt_mode` dispatch
-- Depends on: All libraries (sourced first), all modules (sourced second)
-- Used by: End user / CI
-- Purpose: Reusable utilities with no side effects; loadable independently for tests
-- Location: `lib/validation.sh`, `lib/common.sh`, `lib/ui.sh`, `lib/parallel.sh`
-- Contains: Input sanitization, file helpers, UI/color/progress, parallel job management
-- Depends on: Nothing (source-guarded with `_*_LOADED` pattern)
-- Used by: All modules and reconftw.sh
-- Purpose: Implement all scanning, analysis, and orchestration functions
-- Location: `modules/`
-- Contains: All recon, vuln, OSINT, web, subdomain functions
-- Depends on: Libraries (always loaded first), `reconftw.cfg` variables, external tools on PATH
-- Used by: modes.sh orchestrates all others; reconftw.sh dispatches to modes.sh
-- Purpose: Default runtime values for ~350 flags/paths/limits; can be overridden by `secrets.cfg` and custom config
-- Location: `reconftw.cfg`, optionally `secrets.cfg`, optionally `$CUSTOM_CONFIG`
-- Contains: Module enable/disable flags, tool flags, API key env-var references, paths, parallelism settings, verbosity, Axiom settings
-- Depends on: Nothing
-- Used by: Sourced by `reconftw.sh` between CLI parse and CLI override re-application
-- Purpose: Store per-target findings in a stable directory hierarchy
-- Location: `Recon/<domain>/` (created at `start()` time by `modules/modes.sh`)
-- Contains: Standard subdirectories listed below
-- Depends on: `start()` in modes.sh creates the directory tree
 ## Data Flow
 ### Primary Recon Request Path (`-r` / `--recon`)
 `reconftw.sh` → parse getopt → source `reconftw.cfg` → re-apply `CLI_*` → dispatch to `recon()` in `modes.sh` → `start()` (creates output tree) → `parallel_funcs` over [osint, subs_menu, webs_menu, vulns groups] → `end()` (AI report, export, summary)
