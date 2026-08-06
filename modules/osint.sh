@@ -811,3 +811,103 @@ function uncover_assets() {
         fi
     fi
 }
+
+function shodan_cves() {
+    ensure_dirs hosts osint
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } \
+        && [[ ${SHODAN_CVES:-false} == true ]] && [[ $OSINT == true ]]; then
+        start_func "${FUNCNAME[0]}" "Shodan CVE Lookup for Discovered IPs"
+
+        if [[ -z "${SHODAN_API_KEY:-}" ]]; then
+            _print_msg WARN "SHODAN_API_KEY not set, skipping shodan_cves"
+            end_func "0 CVEs (no API key)" "${FUNCNAME[0]}" "SKIP"
+            return
+        fi
+
+        if ! command -v shodan &>/dev/null; then
+            _print_msg WARN "shodan CLI not installed (pip install shodan), skipping"
+            end_func "0 CVEs (shodan CLI missing)" "${FUNCNAME[0]}" "SKIP"
+            return
+        fi
+
+        if [[ ! -s "hosts/ips.txt" ]]; then
+            end_func "0 CVEs (no IPs available)" "${FUNCNAME[0]}" "SKIP_NOINPUT"
+            return
+        fi
+
+        register_secret "$SHODAN_API_KEY"
+        run_command shodan init "$SHODAN_API_KEY" 2>>"$LOGFILE" >/dev/null || true
+
+        : > .tmp/shodan_raw.jsonl
+        : > hosts/shodan_cves.txt
+
+        while IFS= read -r ip; do
+            [[ -z "$ip" ]] && continue
+            local result
+            result=$(run_command shodan host "$ip" --json 2>>"$LOGFILE") || continue
+            [[ -z "$result" ]] && continue
+            printf '%s\n' "$result" >> .tmp/shodan_raw.jsonl
+            printf '%s' "$result" | jq -r --arg ip "$ip" '
+                .vulns // {} | to_entries[] |
+                "[\($ip)] \(.key) [CVSS:\(.value.cvss // "N/A")] \(.value.summary // "")"
+            ' 2>/dev/null | sed '/^$/d' | anew -q hosts/shodan_cves.txt || true
+        done < "hosts/ips.txt"
+
+        local cve_count=0
+        [[ -s "hosts/shodan_cves.txt" ]] && cve_count=$(wc -l < hosts/shodan_cves.txt | tr -d ' ')
+        [[ $cve_count -gt 0 ]] && append_assets_from_file finding value hosts/shodan_cves.txt
+
+        end_func "${cve_count} CVEs found in hosts/shodan_cves.txt" "${FUNCNAME[0]}"
+    else
+        if [[ ${SHODAN_CVES:-false} == false ]] || [[ $OSINT == false ]]; then
+            skip_notification "disabled"
+        else
+            skip_notification "processed"
+        fi
+    fi
+}
+
+function leakix_search() {
+    ensure_dirs osint
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } \
+        && [[ ${LEAKIX_SEARCH:-false} == true ]] && [[ $OSINT == true ]]; then
+        start_func "${FUNCNAME[0]}" "LeakIX Exposure Search"
+
+        if [[ -z "${LEAKIX_API_KEY:-}" ]]; then
+            _print_msg WARN "LEAKIX_API_KEY not set, skipping leakix_search"
+            end_func "0 results (no API key)" "${FUNCNAME[0]}" "SKIP"
+            return
+        fi
+
+        register_secret "$LEAKIX_API_KEY"
+
+        : > osint/leakix.json
+        : > osint/leakix_summary.txt
+
+        local result
+        result=$(run_command curl -s -f \
+            -H "api-key: ${LEAKIX_API_KEY}" \
+            "https://leakix.net/api/search?scope=leak&q=%2Bdomain%3A${domain}&page=0" \
+            2>>"$LOGFILE") || true
+
+        if [[ -n "$result" ]] && printf '%s' "$result" | jq -e '. | type == "array"' >/dev/null 2>&1; then
+            printf '%s' "$result" > osint/leakix.json
+            printf '%s' "$result" | jq -r '
+                .[] | "\(.ip // "unknown"):\(.port // "0") [\(.event_source // "unknown")] \(.summary // "") [\(.severity // "info")]"
+            ' 2>/dev/null | sed '/^$/d' | anew -q osint/leakix_summary.txt || true
+        fi
+
+        local found=0
+        [[ -s "osint/leakix_summary.txt" ]] && found=$(wc -l < osint/leakix_summary.txt | tr -d ' ')
+
+        end_func "${found} exposures in osint/leakix_summary.txt" "${FUNCNAME[0]}"
+    else
+        if [[ ${LEAKIX_SEARCH:-false} == false ]] || [[ $OSINT == false ]]; then
+            skip_notification "disabled"
+        else
+            skip_notification "processed"
+        fi
+    fi
+}

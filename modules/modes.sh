@@ -665,9 +665,9 @@ function osint() {
         # Group 3: Metadata, API leaks, third-party checks
         parallel_funcs "${PAR_OSINT_GROUP3_SIZE:-4}" \
             metadata apileaks third_party_misconfigs zonetransfer
-        # Group 4: Mail/DNS/Cloud
+        # Group 4: Mail/DNS/Cloud/exposure
         parallel_funcs "${PAR_OSINT_GROUP4_SIZE:-3}" \
-            mail_hygiene spoof cloud_enum_scan
+            mail_hygiene spoof cloud_enum_scan leakix_search
     else
         domain_info
         ip_info
@@ -685,6 +685,7 @@ function osint() {
         spoof
         cloud_enum_scan
         uncover_assets
+        leakix_search
     fi
 }
 
@@ -965,6 +966,7 @@ function recon() {
         geo_info
         tls_ip_pivots
         virtualhosts
+        shodan_cves
     else
         run_module_with_axiom_failover screenshot
         run_module_with_axiom_failover cdnprovider
@@ -973,6 +975,7 @@ function recon() {
         run_module_with_axiom_failover geo_info
         tls_ip_pivots
         virtualhosts
+        shodan_cves
     fi
 
     ui_module_end "Web Detection" "webs/" "hosts/" "screenshots/"
@@ -993,6 +996,7 @@ function recon() {
         # Heavy scanning functions run sequentially to avoid overwhelming targets
         run_module_with_axiom_failover waf_checks
         run_module_with_axiom_failover nuclei_check
+        nuclei_tech_specific
         run_module_with_axiom_failover graphql_scan
         run_module_with_axiom_failover fuzz
         run_module_with_axiom_failover ferox_fuzz
@@ -1033,6 +1037,7 @@ function recon() {
     wordlist_gen_roboxtractor
     password_dict
     url_ext
+    endpoint_aggregator
 
     ui_module_end "Finalization" "webs/" "gf/" "cms/"
     progress_module "Finalization"
@@ -1401,6 +1406,7 @@ function webs_menu() {
 
     run_module_with_axiom_failover waf_checks
     run_module_with_axiom_failover nuclei_check
+    nuclei_tech_specific
     run_module_with_axiom_failover graphql_scan
     run_module_with_axiom_failover fuzz
     run_module_with_axiom_failover ferox_fuzz
@@ -1421,6 +1427,7 @@ function webs_menu() {
     password_dict
     url_ext
     grpc_reflection
+    endpoint_aggregator
 
     vulns
     end
