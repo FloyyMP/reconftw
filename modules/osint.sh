@@ -911,3 +911,59 @@ function leakix_search() {
         fi
     fi
 }
+
+function dataforseo_traffic() {
+    ensure_dirs osint
+
+    if { [[ ! -f "$called_fn_dir/.${FUNCNAME[0]}" ]] || [[ $DIFF == true ]]; } \
+        && [[ ${DATAFORSEO_TRAFFIC:-false} == true ]] && [[ $OSINT == true ]]; then
+        start_func "${FUNCNAME[0]}" "Running: DataForSEO traffic estimate"
+
+        if [[ -z "${DATAFORSEO_LOGIN:-}" ]] || [[ -z "${DATAFORSEO_PASSWORD:-}" ]]; then
+            _print_msg WARN "DATAFORSEO_LOGIN/PASSWORD not set, skipping dataforseo_traffic"
+            end_func "Skipped — credentials missing" "${FUNCNAME[0]}"
+            return 0
+        fi
+
+        register_secret "$DATAFORSEO_PASSWORD"
+
+        local payload result organic paid keywords rank
+        payload="[{\"target\":\"${domain}\",\"location_code\":2840,\"language_code\":\"en\"}]"
+
+        result=$(run_command curl -s -f \
+            -u "${DATAFORSEO_LOGIN}:${DATAFORSEO_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "https://api.dataforseo.com/v3/dataforseo_labs/google/domain_overview/live" \
+            2>>"$LOGFILE") || true
+
+        if [[ -z "$result" ]] || ! printf '%s' "$result" | jq -e '.status_code == 20000' >/dev/null 2>&1; then
+            _print_msg WARN "DataForSEO returned no usable data"
+            end_func "No data returned" "${FUNCNAME[0]}"
+            return 0
+        fi
+
+        printf '%s' "$result" | jq '.' > osint/dataforseo_traffic.json
+
+        organic=$(printf '%s' "$result" | jq -r '.tasks[0].result[0].metrics.organic.etv // 0' 2>/dev/null)
+        paid=$(printf '%s' "$result" | jq -r '.tasks[0].result[0].metrics.paid.etv // 0' 2>/dev/null)
+        keywords=$(printf '%s' "$result" | jq -r '.tasks[0].result[0].metrics.organic.count // 0' 2>/dev/null)
+        rank=$(printf '%s' "$result" | jq -r '.tasks[0].result[0].domain_rank // "unknown"' 2>/dev/null)
+
+        {
+            printf 'domain: %s\n' "$domain"
+            printf 'organic_traffic_est: %s/mo\n' "$organic"
+            printf 'paid_traffic_est: %s/mo\n' "$paid"
+            printf 'organic_keywords: %s\n' "$keywords"
+            printf 'domain_rank: %s\n' "$rank"
+        } > osint/dataforseo_traffic.txt
+
+        end_func "Traffic: ~${organic}/mo organic, ${keywords} keywords → osint/dataforseo_traffic.txt" "${FUNCNAME[0]}"
+    else
+        if [[ ${DATAFORSEO_TRAFFIC:-false} == false ]] || [[ $OSINT == false ]]; then
+            skip_notification "disabled"
+        else
+            skip_notification "processed"
+        fi
+    fi
+}
