@@ -160,15 +160,13 @@ _parallel_compact_list() {
         printf "none"
         return 0
     fi
-    local count
-    count=$(awk -F',' 'NF{print NF}' <<<"$list")
-    if ((count <= max)); then
-        printf "%s" "$list"
-    else
-        local trimmed
-        trimmed=$(echo "$list" | awk -F',' -v m="$max" '{out=""; for(i=1;i<=m;i++){out=out $i (i<m? ",":"")} print out}')
-        printf "%s, +%d more" "$trimmed" "$((count - max))"
-    fi
+    printf "%s" "$list" | awk -F',' -v max="$max" '{
+        n = NF
+        if (n <= max) { printf "%s", $0; next }
+        out = ""
+        for (i = 1; i <= max; i++) out = out $i (i < max ? "," : "")
+        printf "%s, +%d more", out, (n - max)
+    }'
 }
 
 _parallel_snapshot() {
